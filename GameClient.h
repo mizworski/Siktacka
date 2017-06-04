@@ -52,14 +52,12 @@ public:
             return;
         }
 
-        msg = deserialize_message(raw_msg, rcv_len, msg);
+//        msg = deserialize_message(raw_msg, rcv_len, msg);
 
     }
 
 private:
     void get_new_session_id();
-
-    std::vector<unsigned char> itob(int64_t val, uint64_t size);
 
     void init_addr_hints(addrinfo &addr_hints, int32_t type);
 

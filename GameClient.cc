@@ -1,5 +1,6 @@
 
 #include "GameClient.h"
+#include "HelperFunctions.h"
 
 GameClient::GameClient(std::string &player_name, std::string &game_server_host, uint64_t game_server_port,
                        std::string ui_server_host, uint64_t ui_server_port) : player_name_(player_name),
@@ -21,13 +22,6 @@ void GameClient::get_new_session_id() {
     struct timeval tp;
     gettimeofday(&tp, NULL);
     session_id_ = (uint64_t) (tp.tv_sec * 1000000ll + tp.tv_usec);
-}
-
-std::vector<unsigned char> GameClient::itob(int64_t val, uint64_t size) {
-    std::vector<unsigned char> bytes(size);
-    for (int i = 0; i < size; ++i)
-        bytes[(size - 1) - i] = (unsigned char) (val >> (i * 8));
-    return bytes;
 }
 
 void GameClient::init_addr_hints(addrinfo &addr_hints, int32_t type) {
