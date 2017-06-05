@@ -9,7 +9,7 @@ GameClient::GameClient(std::string &player_name, std::string &game_server_host, 
                                                                              game_server_port_(game_server_port),
                                                                              ui_server_port_(ui_server_port) {
     get_new_session_id();
-//    session_id_bytes_ = itob(session_id_, 8);
+//    session_id_bytes_ = ntob(session_id_, 8);
     init_addr_hints(addr_hints_game_, UDP);
     init_addr_hints(addr_hints_ui_, TCP);
     initialize_connection(addr_hints_game_, addr_result_game_, game_server_host,
@@ -67,12 +67,12 @@ void GameClient::initialize_connection(addrinfo &addr_hints, addrinfo *&addr_res
 std::string GameClient::serialize_message(char turn_direction, uint32_t next_expected_event_no) {
     std::ostringstream os;
     std::string message;
-    std::vector<unsigned char> session_id_bytes = itob(htobe64(session_id_), 8);
+    std::vector<unsigned char> session_id_bytes = ntob(htobe64(session_id_), 8);
     for (auto byte : session_id_bytes) {
         os << byte;
     }
     os << turn_direction;
-    std::vector<unsigned char> next_expected_event_no_bytes = itob(htonl(next_expected_event_no), 4);
+    std::vector<unsigned char> next_expected_event_no_bytes = ntob(htonl(next_expected_event_no), 4);
 
     for (auto byte : next_expected_event_no_bytes) {
         os << byte;

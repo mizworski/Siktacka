@@ -9,6 +9,11 @@
 #include <iostream>
 #include "HelperFunctions.h"
 
+#include <boost/crc.hpp>
+#include <boost/cstdint.hpp>
+#include <algorithm>
+#include <cassert>
+
 class Event {
 public:
     Event() {}
@@ -21,12 +26,12 @@ public:
         std::ostringstream os;
         std::string message;
 
-        std::vector<unsigned char> lenght_bytes = itob(htonl(len_), 4);
+        std::vector<unsigned char> lenght_bytes = ntob(htonl(len_), 4);
         for (auto byte : lenght_bytes) {
             os << byte;
         }
 
-        std::vector<unsigned char> event_no_bytes = itob(htonl(event_no_), 4);
+        std::vector<unsigned char> event_no_bytes = ntob(htonl(event_no_), 4);
         for (auto byte : event_no_bytes) {
             os << byte;
         }
@@ -39,11 +44,32 @@ public:
 
     std::string get_message() {
         std::string message = serialize();
+        uint32_t crc32 = get_control_sum(message);
 
-        std::string crc32 = "#123";
-        message += crc32;
+        std::vector<unsigned char> crc32_str = ntob(htonl(crc32), 4); // todo htonl(crc32) vs crc32?
+        std::ostringstream os;
+        for (auto ch : crc32_str) {
+            os << ch;
+        }
+        message += os.str();
 
         return message;
+    }
+
+    uint32_t get_control_sum(std::string &message) {
+        const char *serialized_message_cstr = message.c_str();
+        boost::crc_optimal<32, 0x1021, 0xFFFF, 0, false, false> crc_ccitt2;
+        crc_ccitt2 = std::for_each(serialized_message_cstr, serialized_message_cstr + len_ + 4, crc_ccitt2);
+        uint32_t crc32 = (uint32_t) crc_ccitt2();
+
+        return crc32;
+    }
+
+    bool check_control_sum(uint32_t other_sum) {
+        std::string message = serialize();
+        uint32_t valid_sum = get_control_sum(message);
+
+        return other_sum == valid_sum;
     }
 
 protected:
@@ -65,37 +91,67 @@ public:
                                                 players_(players) {}
 
     NewGame(std::string serialized_message) {
-        len_ = (uint32_t) btoi(serialized_message.substr(0, 4));
-        event_no_ = (uint32_t) btoi(serialized_message.substr(4, 4));
-        event_type_ = (char) btoi(serialized_message.substr(8, 1));
-        maxx_ = (uint32_t) btoi(serialized_message.substr(9, 4));
-        maxy_ = (uint32_t) btoi(serialized_message.substr(13, 4));
+        if (serialized_message.length() < 21) {
+            throw std::runtime_error("New game message too short. Should be at least 21 bytes long.");
+        }
+        assert(serialized_message.length() >= 21);
+
+        len_ = (uint32_t) bton(serialized_message.substr(0, 4));
+        if (len_ + 4 != serialized_message.length()) {
+            throw std::runtime_error("Message's length variable does't match actual length of message.");
+        }
+        assert(len_ + 4 == serialized_message.length());
+
+        event_no_ = (uint32_t) bton(serialized_message.substr(4, 4));
+        event_type_ = (char) bton(serialized_message.substr(8, 1));
+        maxx_ = (uint32_t) bton(serialized_message.substr(9, 4));
+        maxy_ = (uint32_t) bton(serialized_message.substr(13, 4));
 
         std::string players_buffer = serialized_message.substr(17);
-//        players_ = {};
+        std::string checksum_str = players_buffer.substr(players_buffer.length() - 4, 4);
+        players_buffer = players_buffer.substr(0, players_buffer.length() - 4);
+
         std::ostringstream os;
 
-        for (auto ch : players_buffer) {
+        if (players_buffer[players_buffer.length() - 1] != 0) {
+            throw std::runtime_error("Players list is not valid (missing null at the end).");
+        }
+        assert(players_buffer[players_buffer.length() - 1] == 0);
+
+        for (auto ch : players_buffer) { // todo what if two zeros next to each other?
             if (ch) {
+                if (ch < 33 || ch > 126) {
+                    throw new std::runtime_error("Player name contains invalid character.");
+                }
                 os << ch;
             } else {
-                players_.push_back(os.str());
+                std::string player_name = os.str();
+                if (player_name.length() > 64) {
+                    throw std::runtime_error("Player name too long");
+                }
+                players_.push_back(std::move(player_name));
                 os.clear();
                 os.str("");
             }
         }
+
+        uint32_t checksum = (uint32_t) bton(checksum_str);
+        if (!check_control_sum(checksum)) {
+            throw std::runtime_error("Wrong control sum.");
+        }
+        assert(check_control_sum(checksum));
     }
 
     std::string serialize() override {
         std::ostringstream os;
         std::string message = Event::serialize();
 
-        std::vector<unsigned char> x_bytes = itob(htonl(maxx_), 4);
+        std::vector<unsigned char> x_bytes = ntob(htonl(maxx_), 4);
         for (auto byte : x_bytes) {
             os << byte;
         }
 
-        std::vector<unsigned char> y_bytes = itob(htonl(maxy_), 4);
+        std::vector<unsigned char> y_bytes = ntob(htonl(maxy_), 4);
         for (auto byte : y_bytes) {
             os << byte;
         }
@@ -126,23 +182,23 @@ public:
                                                                                       y_(y) {}
 
     Pixel(std::string serialized_message) {
-        len_ = (uint32_t) btoi(serialized_message.substr(0, 4));
-        event_no_ = (uint32_t) btoi(serialized_message.substr(4, 4));
-        event_type_ = (char) btoi(serialized_message.substr(8, 1));
-        x_ = (uint32_t) btoi(serialized_message.substr(9, 4));
-        y_ = (uint32_t) btoi(serialized_message.substr(13, 4));
+        len_ = (uint32_t) bton(serialized_message.substr(0, 4));
+        event_no_ = (uint32_t) bton(serialized_message.substr(4, 4));
+        event_type_ = (char) bton(serialized_message.substr(8, 1));
+        x_ = (uint32_t) bton(serialized_message.substr(9, 4));
+        y_ = (uint32_t) bton(serialized_message.substr(13, 4));
     }
 
     std::string serialize() override {
         std::ostringstream os;
         std::string message = Event::serialize();
 
-        std::vector<unsigned char> x_bytes = itob(htonl(x_), 4);
+        std::vector<unsigned char> x_bytes = ntob(htonl(x_), 4);
         for (auto byte : x_bytes) {
             os << byte;
         }
 
-        std::vector<unsigned char> y_bytes = itob(htonl(y_), 4);
+        std::vector<unsigned char> y_bytes = ntob(htonl(y_), 4);
         for (auto byte : y_bytes) {
             os << byte;
         }
@@ -166,20 +222,17 @@ public:
                                            player_number_(player_number) {}
 
     PlayerEliminated(std::string serialized_message) {
-        len_ = (uint32_t) btoi(serialized_message.substr(0, 4));
-        event_no_ = (uint32_t) btoi(serialized_message.substr(4, 4));
-        event_type_ = (char) btoi(serialized_message.substr(8, 1));
-        player_number_ = (char) btoi(serialized_message.substr(9, 1));
+        len_ = (uint32_t) bton(serialized_message.substr(0, 4));
+        event_no_ = (uint32_t) bton(serialized_message.substr(4, 4));
+        event_type_ = (char) bton(serialized_message.substr(8, 1));
+        player_number_ = (char) bton(serialized_message.substr(9, 1));
     }
 
     std::string serialize() override {
         std::ostringstream os;
         std::string message = Event::serialize();
 
-        std::vector<unsigned char> x_bytes = itob(htonl((uint32_t) player_number_), 1);
-        for (auto byte : x_bytes) {
-            os << byte;
-        }
+        os << player_number_;
 
         message += os.str();
 
@@ -194,14 +247,12 @@ class GameOver : public Event {
 public:
     GameOver(uint32_t len,
              uint32_t event_no,
-             char event_type,
-             uint32_t x,
-             uint32_t y) : Event(len, event_no, event_type) {}
+             char event_type) : Event(len, event_no, event_type) {}
 
     GameOver(std::string serialized_message) {
-        len_ = (uint32_t) btoi(serialized_message.substr(0, 4));
-        event_no_ = (uint32_t) btoi(serialized_message.substr(4, 4));
-        event_type_ = (char) btoi(serialized_message.substr(8, 1));
+        len_ = (uint32_t) bton(serialized_message.substr(0, 4));
+        event_no_ = (uint32_t) bton(serialized_message.substr(4, 4));
+        event_type_ = (char) bton(serialized_message.substr(8, 1));
     }
 };
 
