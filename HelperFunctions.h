@@ -8,5 +8,5 @@
 
 std::vector<unsigned char> ntob(int64_t val, uint64_t size);
 
-uint64_t bton(std::string bytes);
+uint64_t bton(std::string &bytes);
 #endif //SIK_HELPERFUNCTIONS_H
