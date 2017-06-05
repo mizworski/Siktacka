@@ -55,10 +55,10 @@ public:
         return message;
     }
 
-    uint32_t get_control_sum(std::string &message) {
+    uint32_t get_control_sum(std::string const &message) {
         boost::crc_32_type result;
         result.process_bytes(message.data(), message.length());
-        return (uint32_t ) result.checksum();
+        return (uint32_t) result.checksum();
     }
 
     bool check_control_sum(uint32_t other_sum) {
@@ -82,18 +82,17 @@ public:
             uint32_t maxx,
             uint32_t maxy,
             std::vector<std::string> &players) : Event(len, event_no, event_type),
-                                                maxx_(maxx),
-                                                maxy_(maxy),
-                                                players_(players) {}
+                                                 maxx_(maxx),
+                                                 maxy_(maxy),
+                                                 players_(players) {}
 
-    NewGame(std::string &serialized_message) {
+    NewGame(std::string const &serialized_message) {
         if (serialized_message.length() < 21) {
             throw std::runtime_error("New game message too short. Should be at least 21 bytes long.");
         }
         assert(serialized_message.length() >= 21);
 
-        std::string len_str(serialized_message.substr(0, 4));
-        len_ = (uint32_t) bton(len_str);
+        len_ = (uint32_t) bton(serialized_message.substr(0, 4));
         if (len_ + 4 != serialized_message.length()) {
             throw std::runtime_error("Message's length variable does't match actual length of message.");
         }
@@ -102,20 +101,14 @@ public:
 
         uint64_t split_point = serialized_message.length() - 4;
         std::string checksum_str = serialized_message.substr(split_point, 4);
-        serialized_message = serialized_message.substr(0, split_point);
+        std::string message_without_checksum(serialized_message.substr(0, split_point));
 
-        std::string event_no_str(serialized_message.substr(4, 4));
-        event_no_ = (uint32_t) bton(event_no_str);
-        std::string event_type_str(serialized_message.substr(8, 1));
-        event_type_ = (char) bton(event_type_str);
+        event_no_ = (uint32_t) bton(message_without_checksum.substr(4, 4));
+        event_type_ = (char) bton(message_without_checksum.substr(8, 1));
+        maxx_ = (uint32_t) bton(message_without_checksum.substr(9, 4));
+        maxy_ = (uint32_t) bton(message_without_checksum.substr(13, 4));
 
-        std::string maxx_str(serialized_message.substr(9, 4));
-        maxx_ = (uint32_t) bton(maxx_str);
-
-        std::string maxy_str(serialized_message.substr(13, 4));
-        maxy_ = (uint32_t) bton(maxy_str);
-
-        std::string players_buffer = serialized_message.substr(17);
+        std::string players_buffer = message_without_checksum.substr(17);
 
         std::ostringstream os;
 
@@ -187,26 +180,21 @@ public:
                                                                                       x_(x),
                                                                                       y_(y) {}
 
-    Pixel(std::string &serialized_message) {
+    Pixel(std::string const &serialized_message) {
         if (serialized_message.length() != 21) {
             throw std::runtime_error("Pixel message of wrong size. Should be exactly 21 bytes.");
         }
 
-        std::string len_str(serialized_message.substr(0, 4));
-        len_ = (uint32_t) bton(len_str);
+        len_ = (uint32_t) bton(serialized_message.substr(0, 4));
         if (len_ != 17) {
             throw std::runtime_error("Pixel len value is wrong. Should be 17.");
         }
 
-        std::string event_no_str(serialized_message.substr(4, 4));
-        event_no_ = (uint32_t) bton(event_no_str);
-        std::string event_type_str(serialized_message.substr(8, 1));
-        event_type_ = (char) bton(event_type_str);
+        event_no_ = (uint32_t) bton(serialized_message.substr(4, 4));
+        event_type_ = (char) bton(serialized_message.substr(8, 1));
 
-        std::string x_str(serialized_message.substr(9, 4));
-        x_ = (uint32_t) bton(x_str);
-        std::string y_str(serialized_message.substr(13, 4));
-        y_ = (uint32_t) bton(y_str);
+        x_ = (uint32_t) bton(serialized_message.substr(9, 4));
+        y_ = (uint32_t) bton(serialized_message.substr(13, 4));
         std::string checksum_str = serialized_message.substr(serialized_message.length() - 4, 4);
         uint32_t checksum = (uint32_t) bton(checksum_str);
         if (!check_control_sum(checksum)) {
@@ -247,24 +235,19 @@ public:
                      char player_number) : Event(len, event_no, event_type),
                                            player_number_(player_number) {}
 
-    PlayerEliminated(std::string &serialized_message) {
+    PlayerEliminated(std::string const &serialized_message) {
         if (serialized_message.length() != 14) {
             throw std::runtime_error("Player eliminated message of wrong size. Should be exactly 14 bytes.");
         }
 
-        std::string len_str(serialized_message.substr(0, 4));
-        len_ = (uint32_t) bton(len_str);
+        len_ = (uint32_t) bton(serialized_message.substr(0, 4));
         if (len_ != 10) {
             throw std::runtime_error("Player eliminated len is wrong. Should be 10.");
         }
 
-        std::string event_no_str(serialized_message.substr(4, 4));
-        event_no_ = (uint32_t) bton(event_no_str);
-        std::string event_type_str(serialized_message.substr(8, 1));
-        event_type_ = (char) bton(event_type_str);
-
-        std::string player_number_str(serialized_message.substr(9, 1));
-        player_number_ = (char) bton(player_number_str);
+        event_no_ = (uint32_t) bton(serialized_message.substr(4, 4));
+        event_type_ = (char) bton(serialized_message.substr(8, 1));
+        player_number_ = (char) bton(serialized_message.substr(9, 1));
 
         std::string checksum_str = serialized_message.substr(serialized_message.length() - 4, 4);
         uint32_t checksum = (uint32_t) bton(checksum_str);
@@ -296,21 +279,18 @@ public:
              uint32_t event_no,
              char event_type) : Event(len, event_no, event_type) {}
 
-    GameOver(std::string &serialized_message) {
+    GameOver(std::string const &serialized_message) {
         if (serialized_message.length() != 13) {
             throw std::runtime_error("Game over message of wrong size. Should be exactly 13 bytes.");
         }
 
-        std::string len_str(serialized_message.substr(0, 4));
-        len_ = (uint32_t) bton(len_str);
+        len_ = (uint32_t) bton(serialized_message.substr(0, 4));
         if (len_ != 9) {
             throw std::runtime_error("Game over len is wrong. Should be 9.");
         }
 
-        std::string event_no_str(serialized_message.substr(4, 4));
-        event_no_ = (uint32_t) bton(event_no_str);
-        std::string event_type_str(serialized_message.substr(8, 1));
-        event_type_ = (char) bton(event_type_str);
+        event_no_ = (uint32_t) bton(serialized_message.substr(4, 4));
+        event_type_ = (char) bton(serialized_message.substr(8, 1));
 
         std::string checksum_str = serialized_message.substr(serialized_message.length() - 4, 4);
         uint32_t checksum = (uint32_t) bton(checksum_str);
