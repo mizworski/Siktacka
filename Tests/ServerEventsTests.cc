@@ -1,5 +1,5 @@
 #include <iostream>
-#include "../ServerMessage.h"
+#include "../ServerDatagram.h"
 
 void test_px(Pixel &e) {
     std::string e_str(e.get_message());
@@ -72,22 +72,34 @@ void test_go(GameOver &go) {
 
 int main() {
     std::cout << "Pixel: " << std::endl;
-    Pixel px(17, 1, 1, 21, 37);
+    Pixel px(17, 12, 1, 21, 37);
     test_px(px);
 
     std::cout << "New game: " << std::endl;
     std::vector<std::string> players({"Michal", "ABCD", "abcd"});
-    NewGame ng(34, 33, 44, 14, 88, players);
+    NewGame ng(34, 22, 0, 14, 88, players);
     test_ng(ng);
 
-    std::cout << "Player eliminated" << std::endl;
-    PlayerEliminated pe(10, 33, 55, 112);
-    test_pe(pe);
+//    std::cout << "Player eliminated" << std::endl;
+//    PlayerEliminated pe(10, 33, 55, 112);
+//    test_pe(pe);
+//
+//    std::cout << "Game over" << std::endl;
+//    GameOver go(9, 37, 14);
+//    test_go(go);
 
-    std::cout << "Game over" << std::endl;
-    GameOver go(9, 37, 14);
-    test_go(go);
+    std::vector<std::shared_ptr<Event>> events({std::make_shared<Pixel>(px), std::make_shared<NewGame>(ng)});
+    ServerDatagram sm(10, events);
 
+    for (unsigned char byte : sm.serialize()) {
+        printf("%d#", byte);
+    }
 
+    std::cout << std::endl;
+    ServerDatagram sm2(sm.serialize());
+
+    for (unsigned char byte : sm2.serialize()) {
+        printf("%d#", byte);
+    }
     return 42;
 }

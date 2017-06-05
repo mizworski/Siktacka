@@ -13,6 +13,7 @@
 #include <boost/cstdint.hpp>
 #include <algorithm>
 #include <cassert>
+#include <memory>
 
 class Event {
 public:
@@ -301,21 +302,78 @@ public:
     }
 };
 
-class ServerMessage {
+class ServerDatagram {
 public:
-    ServerMessage() {
+    ServerDatagram(uint32_t game_id, std::vector<std::shared_ptr<Event>> &events) : game_id_(game_id), events_(events) {}
 
+    ServerDatagram(std::string const &serialized_message) {
+        if (serialized_message.length() < 4) {
+            throw std::runtime_error("Message too short. Should be at least 4 bytes long.");
+        }
+        assert(serialized_message.length() >= 4);
+
+        game_id_ = (uint32_t) bton(serialized_message.substr(0, 4));
+
+        std::string events_str(serialized_message.substr(4));
+
+        while (!events_str.empty()) {
+            if (events_str.length() < 13) {
+                throw std::runtime_error("Message is incomplete. Suffix of message is too short to be event.");
+            }
+            uint32_t event_type_ = (char) bton(events_str.substr(8, 1));
+            uint32_t event_len = (uint32_t) bton(events_str.substr(0, 4));
+            if (events_str.length() < event_len + 4) {
+                throw std::runtime_error("Event is too long to fit into message.");
+            }
+
+            std::shared_ptr<Event> event;
+            switch (event_type_) {
+                case 0:
+                    event = std::make_shared<NewGame>(NewGame(events_str.substr(0, event_len + 4)));
+                    break;
+                case 1:
+                    event = std::make_shared<Pixel>(Pixel(events_str.substr(0, event_len + 4)));
+                    break;
+                case 2:
+                    event = std::make_shared<PlayerEliminated>(PlayerEliminated(events_str.substr(0, event_len + 4)));
+                    break;
+                case 3:
+                    event = std::make_shared<GameOver>(GameOver(events_str.substr(0, event_len + 4)));
+                    break;
+                default:
+                    throw std::runtime_error("Wrong event type in message.");
+            }
+            events_str = events_str.substr(event_len + 4);
+            events_.push_back(event);
+        }
     }
 
-    ServerMessage(std::string serialized_message) {
+    std::string serialize() {
+        std::ostringstream os;
 
+        std::vector<unsigned char> x_bytes = ntob(htonl(game_id_), 4);
+        for (auto byte : x_bytes) {
+            os << byte;
+        }
+
+        std::string message(os.str());
+        for (auto &event : events_) {
+            std::string serialized_event(event->get_message());
+            message += serialized_event;
+        }
+
+        return message;
     }
 
 private:
     uint32_t game_id_;
-    std::vector<Event> events_;
+    std::vector<std::shared_ptr<Event>> events_;
+};
 
+class ServerMessage {
+public:
 
+private:
 };
 
 
