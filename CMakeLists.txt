@@ -8,3 +8,4 @@ set(SOURCE_FILES HelperFunctions.cc HelperFunctions.h GameClient.cc GameClient.h
 
 add_executable(client ${SOURCE_FILES} client.cc)
 add_executable(server ${SOURCE_FILES} server.cc)
+add_executable(message_tests ${SOURCE_FILES} Tests/ServerMessagesTest.cc)

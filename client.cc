@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <iostream>
 #include "GameClient.h"
+#include "ServerMessage.h"
 
 void parse_arguments(int argc, char **argv, std::string &player_name, std::string &game_server_host,
                      uint64_t &game_server_port, std::string &ui_server_host, uint64_t &ui_server_port);
@@ -25,8 +26,9 @@ int main(int argc, char **argv) {
 
     GameClient client(player_name, game_server_host, game_server_port, ui_server_host, ui_server_port);
 
-    client.send_message_to_server(-1, 256);
-    client.send_message_to_server(1, 65537);
+//    client.send_message_to_server(-1, 256);
+//    client.send_message_to_server(1, 65537);
+
 
     return 42;
 }
@@ -44,7 +46,7 @@ void parse_arguments(int argc, char **argv, std::string &player_name, std::strin
     if (game_server_host.find(":") != std::string::npos) {
         std::string game_server_port_str = game_server_host.substr(game_server_host.find(":") + 1,
                                                                    game_server_host.length());
-        game_server_port = (uint64_t ) atoi(game_server_port_str.c_str());
+        game_server_port = (uint64_t) atoi(game_server_port_str.c_str());
         game_server_host = game_server_host.substr(0, game_server_host.find(":"));
     }
 
@@ -54,12 +56,11 @@ void parse_arguments(int argc, char **argv, std::string &player_name, std::strin
         if (ui_server_host.find(":") != std::string::npos) {
             std::string ui_server_port_str = ui_server_host.substr(ui_server_host.find(":") + 1,
                                                                    ui_server_host.length());
-            ui_server_port = (uint64_t ) atoi(ui_server_port_str.c_str());
+            ui_server_port = (uint64_t) atoi(ui_server_port_str.c_str());
             ui_server_host = ui_server_host.substr(0, ui_server_host.find(":"));
         }
     }
 
     std::cout << game_server_host << ' ' << game_server_port << std::endl;
     std::cout << ui_server_host << ' ' << ui_server_port << std::endl;
-
 }
