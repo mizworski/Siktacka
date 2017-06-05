@@ -9,15 +9,22 @@
 #include <queue>
 #include <unordered_set>
 #include "ServerMessage.h"
+#include "TcpSocket.h"
 #include <boost/functional/hash.hpp>
 
 class Head {
 public:
+    Head() {}
+
     Head(float x, float y, float direction) : x_(x), y_(y), direction_(direction) {}
 
     std::pair<int64_t, int64_t> get_position() {
         return {std::floor(x_), std::floor(y_)};
     };
+
+    void turn(int8_t direction, int64_t turning_speed) {
+        direction_ += direction * turning_speed;
+    }
 
     void move_forward(float delta) {
 
@@ -27,6 +34,18 @@ private:
     float x_;
     float y_;
     float direction_;
+};
+
+class Player {
+public:
+    Player(int64_t session_id) : session_id_(session_id), socket_() {
+
+    }
+
+private:
+    Head head_;
+    int64_t session_id_;
+    TcpSocket socket_;
 };
 
 class GameBoard {
@@ -59,7 +78,9 @@ public:
                int64_t turn_speed,
                int64_t random_seed) : width_(width), height_(height), port_(port), game_speed_(game_speed),
                                       turn_speed_(turn_speed), random_state_(random_seed),
-                                      board_(GameBoard(width, height)) {}
+                                      board_(GameBoard(width, height)) {
+        game_id_ = (uint32_t) rand();
+    }
 
 
 private:
@@ -81,6 +102,8 @@ private:
     std::queue<std::shared_ptr<Event>> events_to_send_;
     std::queue<std::shared_ptr<Event>> events_sent_;
     GameBoard board_;
+
+
 };
 
 

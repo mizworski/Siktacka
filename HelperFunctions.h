@@ -5,8 +5,10 @@
 #include <vector>
 #include <cstdint>
 #include <string>
+#include <netdb.h>
 
 std::vector<unsigned char> ntob(int64_t val, uint64_t size);
 
 uint64_t bton(std::string const &bytes);
+
 #endif //SIK_HELPERFUNCTIONS_H

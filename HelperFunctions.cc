@@ -1,4 +1,6 @@
 
+#include <stdexcept>
+#include <cstring>
 #include "HelperFunctions.h"
 
 std::vector<unsigned char> ntob(int64_t val, uint64_t size) {
