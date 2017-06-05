@@ -10,6 +10,7 @@
 #include <netdb.h>
 #include <cstring>
 #include <sstream>
+#include "ClientMessage.h"
 
 #define TCP 21
 #define UDP 37
@@ -23,7 +24,8 @@ public:
                std::string ui_server_host, uint64_t ui_server_port);
 
     void send_message_to_server(char turn_direction, uint32_t next_expected_event_no) {
-        std::string message = serialize_message(turn_direction, next_expected_event_no);
+        ClientMessage cm(session_id_, turn_direction, next_expected_event_no, player_name_);
+        std::string message(cm.serialize());
         size_t msg_len = message.size();
 
         socklen_t rcv_address_len = (socklen_t) sizeof(my_address);
@@ -63,8 +65,6 @@ private:
 
     void initialize_connection(addrinfo &addr_hints, addrinfo *&addr_result, const std::string &host_str,
                                int64_t port, sockaddr_in &my_address, int32_t &sock);
-
-    std::string serialize_message(char turn_direction, uint32_t next_expected_event_no);
 
     std::string player_name_;
     std::string game_server_host_;

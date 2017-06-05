@@ -63,25 +63,3 @@ void GameClient::initialize_connection(addrinfo &addr_hints, addrinfo *&addr_res
         throw std::runtime_error("Failed to open socket.");
     }
 }
-
-std::string GameClient::serialize_message(char turn_direction, uint32_t next_expected_event_no) {
-    std::ostringstream os;
-    std::string message;
-    std::vector<unsigned char> session_id_bytes = ntob(htobe64(session_id_), 8);
-    for (auto byte : session_id_bytes) {
-        os << byte;
-    }
-    os << turn_direction;
-    std::vector<unsigned char> next_expected_event_no_bytes = ntob(htonl(next_expected_event_no), 4);
-
-    for (auto byte : next_expected_event_no_bytes) {
-        os << byte;
-    }
-
-    for (auto byte : player_name_) {
-        os << byte;
-    }
-
-    message = os.str();
-    return message;
-}

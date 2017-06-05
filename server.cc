@@ -2,6 +2,7 @@
 #include <stdlib.h>    /* for exit */
 #include <getopt.h>
 #include <iostream>
+#include "GameServer.h"
 
 class Game {
 
@@ -16,18 +17,18 @@ int main(int argc, char **argv) {
     int64_t port = 12345;
     int64_t game_speed = 50;
     int64_t turn_speed = 6;
-    int64_t random_seed;
+    int64_t random_seed = (int64_t) time(NULL);
 
     try {
-        parse_arguments(argc, argv, width, height, port, game_speed, turn_speed,
-                        random_seed);
+        parse_arguments(argc, argv, width, height, port, game_speed, turn_speed, random_seed);
     } catch (std::runtime_error e) {
         fprintf(stderr, e.what());
         exit(EXIT_FAILURE);
     }
 
+    GameServer server(width, height, port, game_speed, turn_speed, random_seed);
 
-    std::cout << random_seed << turn_speed << game_speed << port << height << width;
+    std::cout << random_seed << ":" << turn_speed << game_speed << port << height << width;
 
     return 42;
 }
