@@ -3,7 +3,7 @@
 #include <getopt.h>
 #include <iostream>
 #include "GameClient.h"
-#include "ServerDatagram.h"
+#include "ServerMessage.h"
 
 void parse_arguments(int argc, char **argv, std::string &player_name, std::string &game_server_host,
                      uint64_t &game_server_port, std::string &ui_server_host, uint64_t &ui_server_port);
