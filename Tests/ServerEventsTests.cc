@@ -101,5 +101,17 @@ int main() {
     for (unsigned char byte : sm2.serialize()) {
         printf("%d#", byte);
     }
+
+    std::cout << std::endl << "Server Message test" << std::endl;
+
+    ServerMessage sm3(15, {std::make_shared<Pixel>(px)});
+    sm3.push_back(std::make_shared<NewGame>(ng));
+
+    std::vector<ServerDatagram> datagrams(sm3.get_datagrams());
+
+    for (unsigned char byte : datagrams.at(0).serialize()) {
+        printf("%d#", byte);
+    }
+
     return 42;
 }

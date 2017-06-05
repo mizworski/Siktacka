@@ -69,6 +69,10 @@ public:
         return other_sum == valid_sum;
     }
 
+    uint32_t get_size() {
+        return len_ + 4;
+    }
+
 protected:
     uint32_t len_;
     uint32_t event_no_;
@@ -304,7 +308,8 @@ public:
 
 class ServerDatagram {
 public:
-    ServerDatagram(uint32_t game_id, std::vector<std::shared_ptr<Event>> &events) : game_id_(game_id), events_(events) {}
+    ServerDatagram(uint32_t game_id, std::vector<std::shared_ptr<Event>> &events) : game_id_(game_id),
+                                                                                    events_(events) {}
 
     ServerDatagram(std::string const &serialized_message) {
         if (serialized_message.length() < 4) {
@@ -372,8 +377,48 @@ private:
 
 class ServerMessage {
 public:
+    ServerMessage(uint32_t game_id) : game_id_(game_id) {}
+
+    ServerMessage(uint32_t game_id,
+                  std::vector<std::shared_ptr<Event>> const &events) : game_id_(game_id), events_(events) {}
+    ServerMessage(uint32_t game_id,
+                  std::vector<std::shared_ptr<Event>> &&events) : game_id_(game_id), events_(std::move(events)) {}
+
+    void push_back(std::shared_ptr<Event> const &event) {
+        events_.push_back(event);
+    }
+
+    void push_back(std::shared_ptr<Event> &&event) {
+        events_.push_back(std::move(event));
+    }
+
+    std::vector<ServerDatagram> get_datagrams() {
+        std::vector<ServerDatagram> result;
+        std::vector<std::shared_ptr<Event>> current_events;
+        uint32_t datagram_size_left = 512 - 4;
+        for (auto &event : events_) {
+            if (datagram_size_left >= event->get_size()) {
+                current_events.push_back(event);
+            } else {
+                ServerDatagram dg(game_id_, current_events);
+                result.push_back(dg);
+                current_events = {event};
+            }
+            datagram_size_left -= event->get_size();
+        }
+
+        if (!current_events.empty()) {
+            ServerDatagram dg(game_id_, current_events);
+            result.push_back(dg);
+            current_events.clear();
+        }
+
+        return result;
+    }
 
 private:
+    uint32_t game_id_;
+    std::vector<std::shared_ptr<Event>> events_;
 };
 
 
