@@ -26,6 +26,10 @@ public:
         freeaddrinfo(addr_result_);
     }
 
+    NetworkAddress(struct sockaddr_in &address) {
+        socket_address_ = address;
+    }
+
     struct sockaddr_in get_socket_address() const {
         return socket_address_;
     }

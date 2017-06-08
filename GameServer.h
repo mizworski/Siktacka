@@ -86,7 +86,9 @@ public:
 
     void resend() {
         while (true) {
-            sockets_.poll_sockets();
+            auto message = sockets_.poll_sockets();
+            
+            break;
         }
     }
 

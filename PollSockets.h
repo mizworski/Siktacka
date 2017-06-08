@@ -9,6 +9,7 @@
 #include <queue>
 #include "UdpSocket.h"
 #include "ClientMessage.h"
+#include "ServerMessage.h"
 
 const uint16_t MAX_UDP_PACKET_SIZE = 512;
 
@@ -39,9 +40,10 @@ public:
         free(sockets_fds_);
     }
 
-    void poll_sockets() {
+    std::pair<bool, ClientMessage> poll_sockets() {
         int32_t ret = poll(sockets_fds_, 1, 5000);
-
+        std::pair<bool, ClientMessage> res;
+        res.first = false;
         if (ret < 0) {
             throw std::runtime_error("Error while polling");
         } else if (ret > 0) {
@@ -51,10 +53,15 @@ public:
                 socklen_t rcva_len = (socklen_t) sizeof(client_address);
                 ssize_t len = recvfrom(sockets_fds_[0].fd, &raw_msg, MAX_UDP_PACKET_SIZE, 0,
                                        (struct sockaddr *) &client_address, &rcva_len);
-
+                if (len < 0) {
+                    throw std::runtime_error("Error while reading.");
+                }
                 std::string message(raw_msg, (size_t) len);
-                ClientMessage cm(message);
-                cm.print_msg();
+                res.second = ClientMessage(message);
+                NetworkAddress sender(client_address);
+                res.second.set_sender(sender);
+                res.second.print_msg();
+                res.first = true;
             }
 
             if ((sockets_fds_[0].revents & POLLOUT) && !messages_to_send.empty()) {
@@ -62,11 +69,43 @@ public:
                 sockets_[0].send(message.second, message.first);
                 messages_to_send.pop();
             }
+            return res;
 
         } else {
-            // idle
             std::cerr << "dupa\n";
+            return res;
         }
+    }
+
+    void add_message_to_queue(std::vector<NetworkAddress> &addresses, std::vector<ServerMessage> &messages) {
+        for (auto &message : messages) {
+            std::vector<ServerDatagram> datagrams(message.get_datagrams());
+            for (auto &datagram : datagrams) {
+                for (auto &address : addresses) {
+                    messages_to_send.push({address, datagram.serialize()});
+                }
+            }
+        }
+    }
+
+    void add_message_to_queue(NetworkAddress &address, std::vector<ServerMessage> &messages) {
+        std::vector<NetworkAddress> addresses;
+        addresses.push_back(address);
+        add_message_to_queue(addresses, messages);
+    }
+
+    void add_message_to_queue(std::vector<NetworkAddress> &addresses, ServerMessage &message) {
+        std::vector<ServerMessage> messages;
+        messages.push_back(message);
+        add_message_to_queue(addresses, messages);
+    }
+
+    void add_message_to_queue(NetworkAddress &address, ServerMessage &message) {
+        std::vector<NetworkAddress> addresses;
+        addresses.push_back(address);
+        std::vector<ServerMessage> messages;
+        messages.push_back(message);
+        add_message_to_queue(addresses, messages);
     }
 
 private:

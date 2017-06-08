@@ -11,9 +11,11 @@
 #include <netinet/in.h>
 #include <iostream>
 #include "HelperFunctions.h"
+#include "NetworkAddress.h"
 
 class ClientMessage {
 public:
+    ClientMessage() {}
     ClientMessage(uint64_t session_id,
                   char turn_direction,
                   uint32_t next_expected_event_no,
@@ -35,7 +37,7 @@ public:
         } else {
             std::ostringstream os;
             std::string player_name_buf = serialized_message.substr(13);
-            for (auto ch : player_name_buf) { // todo what if two zeros next to each other?
+            for (auto ch : player_name_buf) {
                 if (ch < 33 || ch > 126) {
                     throw new std::runtime_error("Player name contains invalid character.");
                 }
@@ -77,11 +79,20 @@ public:
         return message;
     }
 
+    void set_sender(NetworkAddress &sender) {
+        sender_ = sender;
+    }
+
+    NetworkAddress get_sender() {
+        return sender_;
+    }
+
 private:
     uint64_t session_id_;
     char turn_direction_;
     uint32_t next_expected_event_no_;
     std::string player_name_;
+    NetworkAddress sender_;
 };
 
 
