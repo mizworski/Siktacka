@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 
     GameClient client(player_name, game_server_host, game_server_port, ui_server_host, ui_server_port);
 
-//    client.send_message_to_server(-1, 256);
+    client.send_message_to_server(-1, 256);
     client.send_message_to_server(1, 112);
     client.receive_message_from_server();
     client.receive_message_from_server();

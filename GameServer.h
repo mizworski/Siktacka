@@ -12,6 +12,10 @@
 #include "UdpSocket.h"
 #include "PollSockets.h"
 #include <boost/functional/hash.hpp>
+#include <unordered_map>
+#include <boost/functional/hash.hpp>
+#include <functional>
+#include <utility>
 
 class Head {
 public:
@@ -39,14 +43,22 @@ private:
 
 class Player {
 public:
-    Player(int64_t session_id) : session_id_(session_id), socket_() {
+    Player(int64_t session_id, NetworkAddress address) : session_id_(session_id), address_(address) {
 
+    }
+
+    int64_t get_session_id() {
+        return session_id_;
+    }
+
+    NetworkAddress get_address() {
+        return address_;
     }
 
 private:
     Head head_;
     int64_t session_id_;
-    UdpSocket socket_;
+    NetworkAddress address_;
 };
 
 class GameBoard {
@@ -79,17 +91,48 @@ public:
                int64_t turn_speed,
                int64_t random_seed) : width_(width), height_(height), port_(port), game_speed_(game_speed),
                                       turn_speed_(turn_speed), random_state_(random_seed),
-                                      board_(GameBoard(width, height)),
+                                      board_(width, height),
                                       sockets_(1, (uint16_t) port) {
         game_id_ = (uint32_t) rand();
     }
 
     void resend() {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
         while (true) {
-            auto message = sockets_.poll_sockets();
-            
-            break;
+            auto response = sockets_.poll_sockets();
+
+            if (response.first) {
+                auto message = response.second;
+                auto player_address = message.get_sender();
+                auto session_id = message.get_session_id();
+
+                auto player_node = players_.find(player_address);
+                if (player_node == players_.end()) {
+                    Player new_player(session_id, player_address);
+//                    std::pair<int64_t, NetworkAddress> key = {session_id, player_address};
+//                    std::pair<std::pair<int64_t, NetworkAddress>, Player> ent = {key, new_player};
+                    players_.insert({player_address, new_player});
+                } else {
+                    auto player = players_.at(player_address);
+
+                    if (session_id < player.get_session_id()) {
+                        continue;
+                    } else if (session_id > player.get_session_id()) {
+                        Player new_player(session_id, player_address);
+                        player_node->second = new_player;
+                        // todo remove from current players on map
+                    } else {
+                        // todo process message
+                    }
+
+
+                }
+
+            }
+//            break;
         }
+#pragma clang diagnostic pop
     }
 
 
@@ -114,10 +157,8 @@ private:
     std::queue<std::shared_ptr<Event>> events_sent_;
     GameBoard board_;
 
-    std::map<int64_t, Player> players_;
-    std::vector<int64_t> socket_player_session_ids_;
+    std::map<NetworkAddress, Player> players_;
 
-//    UdpSocket socket_;
     PollSockets sockets_;
 };
 

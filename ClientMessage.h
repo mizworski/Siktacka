@@ -16,6 +16,7 @@
 class ClientMessage {
 public:
     ClientMessage() {}
+
     ClientMessage(uint64_t session_id,
                   char turn_direction,
                   uint32_t next_expected_event_no,
@@ -85,6 +86,22 @@ public:
 
     NetworkAddress get_sender() {
         return sender_;
+    }
+
+    uint64_t get_session_id() {
+        return session_id_;
+    }
+
+    char get_turn_direction() {
+        return turn_direction_;
+    }
+
+    uint32_t get_next_expected_event_no_() {
+        return next_expected_event_no_;
+    }
+
+    std::string get_player_name_() {
+        return player_name_;
     }
 
 private:

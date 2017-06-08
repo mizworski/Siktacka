@@ -43,6 +43,16 @@ public:
     bool operator!=(const NetworkAddress &other) const {
         return !(*this == other);
     }
+
+    bool operator<(const NetworkAddress &other) const {
+        if (socket_address_.sin_port < other.get_socket_address().sin_port) {
+            return true;
+        } else if(socket_address_.sin_port > other.get_socket_address().sin_port) {
+            return false;
+        } else {
+            return other.get_socket_address().sin_addr.s_addr < socket_address_.sin_addr.s_addr;
+        }
+    }
 private:
     void init_addr_hints() {
         memset(&addr_hints_, 0, sizeof(struct addrinfo));
