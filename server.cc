@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 
     GameServer server(width, height, port, game_speed, turn_speed, random_seed);
 
-    server.resend();
+    server.start();
 
     std::cout << random_seed << ":" << turn_speed << game_speed << port << height << width;
 

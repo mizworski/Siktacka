@@ -96,11 +96,19 @@ public:
         game_id_ = (uint32_t) rand();
     }
 
-    void resend() {
+    void start() {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
         while (true) {
-            auto response = sockets_.poll_sockets();
+            std::pair<bool, ClientMessage> response;
+            response.first = false;
+            try {
+                auto poll_res = sockets_.poll_sockets();
+                response.first = poll_res.first;
+                response.second = poll_res.second;
+            } catch (std::runtime_error e) {
+                std::cerr << e.what() << std::endl;
+            }
 
             if (response.first) {
                 auto message = response.second;
@@ -110,8 +118,6 @@ public:
                 auto player_node = players_.find(player_address);
                 if (player_node == players_.end()) {
                     Player new_player(session_id, player_address);
-//                    std::pair<int64_t, NetworkAddress> key = {session_id, player_address};
-//                    std::pair<std::pair<int64_t, NetworkAddress>, Player> ent = {key, new_player};
                     players_.insert({player_address, new_player});
                 } else {
                     auto player = players_.at(player_address);
@@ -130,7 +136,6 @@ public:
                 }
 
             }
-//            break;
         }
 #pragma clang diagnostic pop
     }

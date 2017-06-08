@@ -57,11 +57,16 @@ public:
                     throw std::runtime_error("Error while reading.");
                 }
                 std::string message(raw_msg, (size_t) len);
-                res.second = ClientMessage(message);
                 NetworkAddress sender(client_address);
-                res.second.set_sender(sender);
-                res.second.print_msg();
                 res.first = true;
+                try {
+                    res.second = ClientMessage(message);
+                    res.second.set_sender(sender);
+                } catch (std::runtime_error e) {
+                    std::cerr << e.what() << std::endl;
+                    res.first = false;
+                }
+                res.second.print_msg();
             }
 
             if ((sockets_fds_[0].revents & POLLOUT) && !messages_to_send.empty()) {
