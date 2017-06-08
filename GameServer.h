@@ -80,14 +80,23 @@ public:
                                       turn_speed_(turn_speed), random_state_(random_seed),
                                       board_(GameBoard(width, height)) {
         game_id_ = (uint32_t) rand();
+        socket_ = TcpSocket();
+        socket_.bind_socket((uint16_t) port);
+    }
+
+    void resend() {
+        while (true) {
+            break;
+        }
     }
 
 
 private:
     int64_t rand() {
+        int64_t res = random_state_;
         random_state_ *= 279470273;
         random_state_ %= 4294967291;
-        return random_state_;
+        return res;
     }
 
     int64_t width_;
@@ -98,12 +107,16 @@ private:
     int64_t random_state_;
 
     uint32_t game_id_;
-    std::vector<Head> players_heads_;
+//    std::vector<Head> players_heads_;
     std::queue<std::shared_ptr<Event>> events_to_send_;
     std::queue<std::shared_ptr<Event>> events_sent_;
     GameBoard board_;
 
+    std::map<int64_t, Player> players_;
+    std::vector<int64_t> socket_player_session_ids_;
 
+    TcpSocket socket_;
+    struct pollfd *socket_pollfd_;
 };
 
 

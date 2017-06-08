@@ -28,6 +28,8 @@ int main(int argc, char **argv) {
 
 //    client.send_message_to_server(-1, 256);
     client.send_message_to_server(1, 65537);
+    client.receive_message_from_server();
+    client.receive_message_from_server();
 
 
     return 42;

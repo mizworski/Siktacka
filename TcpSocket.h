@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <iostream>
+#include "NetworkAddress.h"
 
 #define TCP 21
 #define UDP 37
@@ -18,29 +19,18 @@ const int16_t MAX_DATAGRAM_SIZE = 512;
 
 class TcpSocket {
 public:
-    TcpSocket() {
-        init_addr_hints();
-    }
+    TcpSocket() {}
+    TcpSocket(NetworkAddress address) : socket_address_(address) {}
 
-    void connect(std::string ip_address, uint16_t port) {
-        if (getaddrinfo(ip_address.c_str(), NULL, &addr_hints_, &addr_result_) != 0) {
-            throw std::runtime_error("Failed to get address of server.");
-        }
-
-        my_address_.sin_family = AF_INET;
-        my_address_.sin_addr.s_addr = ((struct sockaddr_in *) (addr_result_->ai_addr))->sin_addr.s_addr;
-        my_address_.sin_port = htons((uint16_t) port);
-
-        freeaddrinfo(addr_result_);
-
-        sock_ = socket(PF_INET, SOCK_DGRAM, 0);
-        if (sock_ < 0) {
+    void open() {
+        socket_ = socket(PF_INET, SOCK_DGRAM, 0);
+        if (socket_ < 0) {
             throw std::runtime_error("Failed to open socket.");
         }
     }
 
     void disconnect() {
-        if (close(sock_) == -1) { //very rare errors can occur here, but then
+        if (close(socket_) == -1) {
             throw std::runtime_error("Failed to close socket.");
         }
     }
@@ -48,9 +38,9 @@ public:
     void send(std::string message) {
         size_t msg_len = message.size();
 
-        socklen_t rcv_address_len = (socklen_t) sizeof(my_address_);
-        ssize_t snd_len = sendto(sock_, message.c_str(), msg_len, 0, (struct sockaddr *) &my_address_,
-                                 rcv_address_len);
+        socklen_t rcv_address_len = (socklen_t) sizeof(socket_address_);
+        ssize_t snd_len = sendto(socket_, message.c_str(), msg_len, 0,
+                                 (struct sockaddr *) &socket_address_, rcv_address_len);
 
         if (snd_len != (ssize_t) msg_len) {
             std::cerr << "Failed to send message." << std::endl;
@@ -64,37 +54,36 @@ public:
 
         size_t rcv_msg_len = MAX_DATAGRAM_SIZE;
         socklen_t rcv_address_len = (socklen_t) sizeof(server_address);
-        ssize_t rcv_len = recvfrom(sock_, &raw_msg, rcv_msg_len, 0,
+        ssize_t rcv_len = recvfrom(socket_, &raw_msg, rcv_msg_len, 0,
                                    (struct sockaddr *) &server_address, &rcv_address_len);
 
         if (rcv_len < 0) {
             throw std::runtime_error("Failed to read message.");
         }
 
-        std::string res(raw_msg, rcv_msg_len);
+        std::string res(raw_msg, (unsigned long) rcv_len);
 
         return res;
     }
 
-private:
-    void init_addr_hints() {
-        memset(&addr_hints_, 0, sizeof(struct addrinfo));
-
-        addr_hints_.ai_flags = 0;
-        addr_hints_.ai_family = AF_INET;
-        addr_hints_.ai_socktype = SOCK_DGRAM;
-        addr_hints_.ai_protocol = IPPROTO_UDP;
-        addr_hints_.ai_addrlen = 0;
-        addr_hints_.ai_addr = NULL;
-        addr_hints_.ai_canonname = NULL;
-        addr_hints_.ai_next = NULL;
+    int32_t get_descriptor() {
+        return socket_;
     }
 
-    struct sockaddr_in my_address_;
+    void bind_socket(uint16_t port) {
+        bind_address_.sin_family = AF_INET;
+        bind_address_.sin_port = htons(port);
+        bind_address_.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    struct addrinfo addr_hints_;
-    struct addrinfo *addr_result_;
-    int32_t sock_;
+        if (bind(socket_, (struct sockaddr *) &bind_address_, (socklen_t) sizeof(bind_address_)) < 0) {
+            throw std::runtime_error("Failed to bind socket");
+        }
+    }
+
+private:
+    struct sockaddr_in bind_address_;
+    NetworkAddress socket_address_;
+    int32_t socket_;
 };
 
 
