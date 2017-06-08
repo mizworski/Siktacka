@@ -7,10 +7,11 @@ GameClient::GameClient(std::string &player_name, std::string &game_server_host, 
                                                                               game_server_host_(game_server_host),
                                                                               ui_server_host_(ui_server_host),
                                                                               game_server_port_(game_server_port),
-                                                                              ui_server_port_(ui_server_port) {
+                                                                              ui_server_port_(ui_server_port),
+                                                                              game_server_address_(game_server_host,
+                                                                                                   (uint16_t) game_server_port),
+                                                                              game_socket_() {
     get_new_session_id();
-    NetworkAddress address(game_server_host, (uint16_t) game_server_port);
-    game_socket_ = TcpSocket(address);
     game_socket_.open();
 }
 

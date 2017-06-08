@@ -13,14 +13,11 @@
 #include <iostream>
 #include "NetworkAddress.h"
 
-#define TCP 21
-#define UDP 37
 const int16_t MAX_DATAGRAM_SIZE = 512;
 
-class TcpSocket {
+class UdpSocket {
 public:
-    TcpSocket() {}
-    TcpSocket(NetworkAddress address) : socket_address_(address) {}
+    UdpSocket() {}
 
     void open() {
         socket_ = socket(PF_INET, SOCK_DGRAM, 0);
@@ -35,7 +32,7 @@ public:
         }
     }
 
-    void send(std::string message) {
+    void send(std::string message, NetworkAddress socket_address_) {
         size_t msg_len = message.size();
 
         socklen_t rcv_address_len = (socklen_t) sizeof(socket_address_);
@@ -70,19 +67,8 @@ public:
         return socket_;
     }
 
-    void bind_socket(uint16_t port) {
-        bind_address_.sin_family = AF_INET;
-        bind_address_.sin_port = htons(port);
-        bind_address_.sin_addr.s_addr = htonl(INADDR_ANY);
-
-        if (bind(socket_, (struct sockaddr *) &bind_address_, (socklen_t) sizeof(bind_address_)) < 0) {
-            throw std::runtime_error("Failed to bind socket");
-        }
-    }
-
 private:
     struct sockaddr_in bind_address_;
-    NetworkAddress socket_address_;
     int32_t socket_;
 };
 

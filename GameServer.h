@@ -9,7 +9,8 @@
 #include <queue>
 #include <unordered_set>
 #include "ServerMessage.h"
-#include "TcpSocket.h"
+#include "UdpSocket.h"
+#include "PollSockets.h"
 #include <boost/functional/hash.hpp>
 
 class Head {
@@ -45,7 +46,7 @@ public:
 private:
     Head head_;
     int64_t session_id_;
-    TcpSocket socket_;
+    UdpSocket socket_;
 };
 
 class GameBoard {
@@ -78,15 +79,14 @@ public:
                int64_t turn_speed,
                int64_t random_seed) : width_(width), height_(height), port_(port), game_speed_(game_speed),
                                       turn_speed_(turn_speed), random_state_(random_seed),
-                                      board_(GameBoard(width, height)) {
+                                      board_(GameBoard(width, height)),
+                                      sockets_(1, (uint16_t) port) {
         game_id_ = (uint32_t) rand();
-        socket_ = TcpSocket();
-        socket_.bind_socket((uint16_t) port);
     }
 
     void resend() {
         while (true) {
-            break;
+            sockets_.poll_sockets();
         }
     }
 
@@ -107,7 +107,7 @@ private:
     int64_t random_state_;
 
     uint32_t game_id_;
-//    std::vector<Head> players_heads_;
+
     std::queue<std::shared_ptr<Event>> events_to_send_;
     std::queue<std::shared_ptr<Event>> events_sent_;
     GameBoard board_;
@@ -115,8 +115,8 @@ private:
     std::map<int64_t, Player> players_;
     std::vector<int64_t> socket_player_session_ids_;
 
-    TcpSocket socket_;
-    struct pollfd *socket_pollfd_;
+//    UdpSocket socket_;
+    PollSockets sockets_;
 };
 
 

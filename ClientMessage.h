@@ -9,6 +9,7 @@
 #include <sstream>
 #include <vector>
 #include <netinet/in.h>
+#include <iostream>
 #include "HelperFunctions.h"
 
 class ClientMessage {
@@ -20,6 +21,37 @@ public:
                                                     turn_direction_(turn_direction),
                                                     next_expected_event_no_(next_expected_event_no),
                                                     player_name_(player_name) {}
+
+    ClientMessage(std::string const &serialized_message) {
+        if (serialized_message.length() < 13 || serialized_message.length() > 77) {
+            throw std::runtime_error("Client message size was wrong.");
+        }
+
+        session_id_ = bton(serialized_message.substr(0, 8));
+        turn_direction_ = (char) bton(serialized_message.substr(8, 1));
+        next_expected_event_no_ = (uint32_t) bton(serialized_message.substr(9, 4));
+        if (serialized_message.length() == 13) {
+            player_name_ = "";
+        } else {
+            std::ostringstream os;
+            std::string player_name_buf = serialized_message.substr(13);
+            for (auto ch : player_name_buf) { // todo what if two zeros next to each other?
+                if (ch < 33 || ch > 126) {
+                    throw new std::runtime_error("Player name contains invalid character.");
+                }
+                os << ch;
+            }
+
+            player_name_ = os.str();
+        }
+    }
+
+    void print_msg() {
+        std::cout << "session_id=" << session_id_ << std::endl;
+        std::cout << "turn_direction=" << +turn_direction_ << std::endl;
+        std::cout << "next_exp_event_no=" << next_expected_event_no_ << std::endl;
+        std::cout << "playername=" << player_name_ << std::endl;
+    }
 
     std::string serialize() {
         std::ostringstream os;
@@ -44,6 +76,7 @@ public:
         message = os.str();
         return message;
     }
+
 private:
     uint64_t session_id_;
     char turn_direction_;

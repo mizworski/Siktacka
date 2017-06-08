@@ -12,7 +12,7 @@ std::vector<unsigned char> ntob(int64_t val, uint64_t size) {
 
 uint64_t bton(std::string const &bytes) {
     uint64_t res = 0;
-    int32_t mult = 1;
+    int64_t mult = 1;
     for (int i = 0; i < bytes.length(); ++i) {
         res += ((uint8_t) bytes[i]) * mult;
         mult *= 256;

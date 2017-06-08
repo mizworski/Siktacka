@@ -10,7 +10,7 @@
 #include <cstring>
 #include <sstream>
 #include "ClientMessage.h"
-#include "TcpSocket.h"
+#include "UdpSocket.h"
 
 class GameClient {
 public:
@@ -19,11 +19,11 @@ public:
 
     void send_message_to_server(char turn_direction, uint32_t next_expected_event_no) {
         ClientMessage cm(session_id_, turn_direction, next_expected_event_no, player_name_);
+
         std::string message(cm.serialize());
+        cm.print_msg();
+        game_socket_.send(message, game_server_address_);
 
-        game_socket_.send(message);
-
-        std::cout << message << std::endl;
     }
 
     void receive_message_from_server() {
@@ -47,7 +47,8 @@ private:
     uint64_t session_id_;
 //    std::vector<unsigned char> session_id_bytes_;
 
-    TcpSocket game_socket_;
+    NetworkAddress game_server_address_;
+    UdpSocket game_socket_;
 
     struct addrinfo addr_hints_ui_;
     struct addrinfo *addr_result_ui_;
