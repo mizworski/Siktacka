@@ -218,7 +218,7 @@ public:
                int64_t random_seed) : width_(width), height_(height), port_(port), game_speed_(game_speed),
                                       turn_speed_(turn_speed), random_state_(random_seed),
                                       board_(width, height),
-                                      sockets_(1, (uint16_t) port),
+                                      sockets_(1, (uint16_t) port, game_speed),
                                       is_game_active_(false) {}
 
     void start() {
@@ -227,10 +227,11 @@ public:
         while (true) {
             std::pair<bool, ClientMessage> response;
             response.first = false;
-            // todo measure time
-//            struct timeval tp;
-//            gettimeofday(&tp, NULL);
-//            int64_t timestamp_before = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+
+            struct timeval tp;
+            gettimeofday(&tp, NULL);
+            int64_t timestamp_before = (int64_t) (tp.tv_sec * 1000 + tp.tv_usec / 1000);
+
             try {
                 auto poll_res = sockets_.poll_sockets();
                 response.first = poll_res.first;
@@ -241,8 +242,7 @@ public:
 
             if (response.first) {
                 process_message(response);
-            } // end of processing message
-
+            }
 
             if (!is_game_active_) {
                 check_if_start();
@@ -253,15 +253,14 @@ public:
                 check_game_over();
             }
 
-//            gettimeofday(&tp, NULL);
-//            int64_t timestamp_after = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-//            if (timestamp_after - timestamp_before < 20) {
-//                struct timespec time;
-//                time.tv_sec = 0;
-//                time.tv_nsec = (timestamp_after - timestamp_before) * 1000000;
-//                nanosleep(&time, nullptr);
-//            }
-            // todo check if 20 ms passed since measuring time
+            gettimeofday(&tp, NULL);
+            int64_t timestamp_after = (int64_t) (tp.tv_sec * 1000 + tp.tv_usec / 1000);
+            if (1000 / game_speed_ - (timestamp_after - timestamp_before) > 0) {
+                struct timespec time;
+                time.tv_sec = 0;
+                time.tv_nsec = (1000 / game_speed_ - (timestamp_after - timestamp_before)) * 1000000;
+                nanosleep(&time, nullptr);
+            }
 
         }
 #pragma clang diagnostic pop
@@ -289,7 +288,7 @@ private:
                 return;
             }
             if (!player_name.empty()) {
-                Player new_player(player_name, session_id, player_address, timestamp);
+                Player new_player(player_name, (int64_t) session_id, player_address, timestamp);
                 new_player.set_last_direction(direction);
                 new_player.set_expected_event_no(expected_event_no);
                 std::shared_ptr<Player> player_ptr = std::make_shared<Player>(new_player);
@@ -297,7 +296,7 @@ private:
 
                 send_message({player_address, player_ptr});
             } else if (observers_.find(player_address) == observers_.end()) {
-                Observer new_obs(session_id, player_address, timestamp);
+                Observer new_obs((int64_t) session_id, player_address, timestamp);
                 new_obs.set_expected_event_no(expected_event_no);
                 observers_.insert({player_address, new_obs});
             }
@@ -311,7 +310,7 @@ private:
 
             if (player_name.empty()) {
                 players_.erase(player_address);
-                Observer new_obs(session_id, player_address, timestamp);
+                Observer new_obs((int64_t) session_id, player_address, timestamp);
                 new_obs.set_expected_event_no(expected_event_no);
                 observers_.insert({player_address, new_obs});
             } else if (session_id > player_node->second->get_session_id()) {
@@ -326,7 +325,7 @@ private:
                 // todo process message
             } else if (player_node->second->get_player_name() == player_name) {
                 send_message({player_address, player_node->second});
-            }else {
+            } else {
                 return;
             }
         }
@@ -344,9 +343,6 @@ private:
                 ++players_alive;
             }
         }
-
-        //todo
-//        throw std::runtime_error("koniec gry");
 
         if (players_alive <= 1) {
             is_game_active_ = false;
@@ -373,9 +369,6 @@ private:
                 auto head_pos_before = head->get_position();
                 head->move_forward(player->get_last_direction());
                 auto head_pos_after = head->get_position();
-//                if (head_pos_after == head_pos_after) {
-//                    continue;
-//                }
                 if (board_.is_valid(head_pos_after)) {
                     board_.take_position(head_pos_after);
                     Pixel new_pixel(event_no_,
@@ -419,7 +412,6 @@ private:
             if (timestamp - player->get_last_active() > TIMEOUT_LIMIT) {
                 player->set_connected_status(false);
                 to_remove.push_back(el.first);
-                // todo maybe should be removed from players?
             } else if (player->is_connected() && player->get_last_direction() != 0) {
                 ++players_ready;
                 ready_players.push_back(player->get_player_name());
@@ -454,13 +446,8 @@ private:
 
     void start_game(std::vector<std::string> &ready_players) {
         is_game_active_ = true;
-        event_no_ = 0;
-        NewGame ng(event_no_, (uint32_t) width_, (uint32_t) height_, ready_players);
-        event_no_++;
 
-        auto ng_ptr = std::make_shared<NewGame>(ng);
-        events_.push_back(ng_ptr);
-        std::cout << "Zaczynamy!" << std::endl;
+        std::cout << "Zaczynamy!" << std::endl; //todo to remove
 
         std::vector<std::pair<std::shared_ptr<Player>, NetworkAddress>> players_to_sort;
         for (auto &el : players_) {
@@ -468,6 +455,7 @@ private:
         }
         std::sort(players_to_sort.begin(), players_to_sort.end()); // todo validate
 
+        std::vector<std::string> player_names_sorted;
         players_sorted_.clear();
         uint8_t player_number = 0;
         for (auto &el : players_to_sort) {
@@ -475,8 +463,15 @@ private:
             el.first->set_playing_status(true);
             el.first->set_alive();
             players_sorted_.push_back({el.second, el.first});
+            player_names_sorted.push_back({el.first->get_player_name()});
             ++player_number;
         }
+
+        event_no_ = 0;
+        NewGame ng(event_no_, (uint32_t) width_, (uint32_t) height_, player_names_sorted);
+        event_no_++;
+        auto ng_ptr = std::make_shared<NewGame>(ng);
+        events_.push_back(ng_ptr);
 
         for (auto &el : players_sorted_) {
 
@@ -498,7 +493,7 @@ private:
             } else {
                 el.second->kill();
                 std::cout << "player=" << el.second->get_player_number() << " x=" << head_pos.first
-                          << " y=" << head_pos.second << std::endl;
+                          << " y=" << head_pos.second << std::endl; //todo to remove
                 PlayerEliminated pe(event_no_, el.second->get_player_number());
                 ++event_no_;
                 auto pe_ptr = std::make_shared<PlayerEliminated>(pe);

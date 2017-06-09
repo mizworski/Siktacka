@@ -27,7 +27,7 @@ public:
     }
 
     void receive_message_from_server() {
-        std::string message(game_socket_.recv());
+        std::string message(game_socket_.receive());
 
         ServerDatagram datagram(message);
 

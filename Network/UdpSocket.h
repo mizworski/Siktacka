@@ -45,7 +45,7 @@ public:
         }
     }
 
-    std::string recv() {
+    std::string receive() {
         struct sockaddr_in server_address;
         char raw_msg[MAX_DATAGRAM_SIZE];
 
@@ -68,7 +68,6 @@ public:
     }
 
 private:
-    struct sockaddr_in bind_address_;
     int32_t socket_;
 };
 

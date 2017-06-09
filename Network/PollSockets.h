@@ -15,11 +15,12 @@ const uint16_t MAX_UDP_PACKET_SIZE = 512;
 
 class PollSockets {
 public:
-    PollSockets(uint16_t sockets, uint16_t port) : sockets_(sockets) {
+    PollSockets(uint16_t sockets, uint16_t port, int64_t rounds_per_sec) : sockets_(sockets),
+                                                                           rounds_per_sec_(rounds_per_sec) {
         sockets_fds_ = (pollfd *) calloc(sockets, sizeof(struct pollfd));
 
         for (uint16_t i = 0; i < sockets; ++i) {
-            sockets_fds_[i].events = POLLIN | POLLOUT;
+            sockets_fds_[i].events = POLLIN | POLLOUT; // todo leave pollout or not?
             sockets_fds_[i].revents = 0;
         }
 
@@ -41,7 +42,7 @@ public:
     }
 
     std::pair<bool, ClientMessage> poll_sockets() {
-        int32_t ret = poll(sockets_fds_, 1, 500);
+        int32_t ret = poll(sockets_fds_, 1, (int) (1000 / rounds_per_sec_));
         std::pair<bool, ClientMessage> res;
         res.first = false;
         if (ret < 0) {
@@ -66,7 +67,6 @@ public:
                     std::cerr << e.what() << std::endl;
                     res.first = false;
                 }
-//                res.second.print_msg();
             }
 
             if ((sockets_fds_[0].revents & POLLOUT) && !messages_to_send.empty()) {
@@ -74,12 +74,8 @@ public:
                 sockets_[0].send(message.second, message.first);
                 messages_to_send.pop();
             }
-            return res;
-
-        } else {
-            std::cerr << "dupa\n";
-            return res;
         }
+        return res;
     }
 
     void add_message_to_queue(std::vector<NetworkAddress> &addresses, std::vector<ServerMessage> &messages) {
@@ -121,6 +117,7 @@ public:
     }
 
 private:
+    int64_t rounds_per_sec_;
     struct sockaddr_in server;
     struct pollfd *sockets_fds_;
     std::vector<UdpSocket> sockets_;
