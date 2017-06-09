@@ -219,56 +219,7 @@ public:
             }
 
             if (response.first) {
-                uint64_t timestamp = (uint64_t) time(NULL);
-                auto message = response.second;
-                auto player_address = message.get_sender();
-                auto session_id = message.get_session_id();
-                auto player_name = message.get_player_name_();
-                auto direction = message.get_turn_direction();
-                auto expected_event_no = message.get_next_expected_event_no_();
-
-                auto player_node = players_.find(player_address);
-                if (player_node == players_.end()) {
-                    if (player_name != "") {
-                        Player new_player(player_name, session_id, player_address, timestamp);
-                        new_player.set_last_direction(direction);
-                        new_player.set_expected_event_no(expected_event_no);
-                        players_.insert({player_address, new_player});
-                    } else if (observers_.find(player_address) == observers_.end()) {
-                        Observer new_obs(session_id, player_address, timestamp);
-                        new_obs.set_expected_event_no(expected_event_no);
-                        observers_.insert({player_address, new_obs});
-                    }
-                } else {
-                    if (session_id < player_node->second.get_session_id()) {
-                        continue;
-                    }
-
-                    if (player_name == "") {
-                        players_.erase(player_address);
-                        Observer new_obs(session_id, player_address, timestamp);
-                        new_obs.set_expected_event_no(expected_event_no);
-                        observers_.insert({player_address, new_obs});
-//                        player_node->second.set_connected_status(false);
-                    } else if (session_id > player_node->second.get_session_id()) {
-//                        Player new_player(player_name, session_id, player_address, timestamp);
-//                        player_node->second = new_player;
-                        player_node->second.set_playing_status(false);
-                        // todo resend everything?
-                    } else if (player_node->second.is_connected() &&
-                               player_node->second.get_player_name() == player_name) { //todo what if different names
-                        player_node->second.set_last_active(timestamp);
-                        player_node->second.set_last_direction(direction);
-                        player_node->second.set_expected_event_no(expected_event_no);
-
-                        // todo process message
-                    }
-                }
-                player_node = players_.find(player_address);
-
-                if (!is_game_active_) {
-                    player_node->second.set_connected_status(true);
-                }
+                process_message(response);
 
             } // end of processing message
 
@@ -279,6 +230,7 @@ public:
 
             if (is_game_active_) {
                 tick_one_round();
+                check_game_over();
             }
 
             // todo check if 20 ms passed since measuring time
@@ -287,8 +239,85 @@ public:
 #pragma clang diagnostic pop
     }
 
+    void process_message(const std::pair<bool, ClientMessage> &response) {
+        uint64_t timestamp = (uint64_t) time(NULL);
+        auto message = response.second;
+        auto player_address = message.get_sender();
+        auto session_id = message.get_session_id();
+        auto player_name = message.get_player_name_();
+        auto direction = message.get_turn_direction();
+        auto expected_event_no = message.get_next_expected_event_no_();
+
+        auto player_node = players_.find(player_address);
+        if (player_node == players_.end()) {
+
+            if (player_names_.find(player_name) != player_names_.end()) {
+                return;
+            }
+            if (!player_name.empty()) {
+                Player new_player(player_name, session_id, player_address, timestamp);
+                new_player.set_last_direction(direction);
+                new_player.set_expected_event_no(expected_event_no);
+                players_.insert({player_address, new_player});
+            } else if (observers_.find(player_address) == observers_.end()) {
+                Observer new_obs(session_id, player_address, timestamp);
+                new_obs.set_expected_event_no(expected_event_no);
+                observers_.insert({player_address, new_obs});
+            }
+        } else {
+            if (session_id < player_node->second.get_session_id()) {
+                return;
+            }
+
+            if (player_name.empty()) {
+                players_.erase(player_address);
+                Observer new_obs(session_id, player_address, timestamp);
+                new_obs.set_expected_event_no(expected_event_no);
+                observers_.insert({player_address, new_obs});
+//                        player_node->second.set_connected_status(false);
+            } else if (session_id > player_node->second.get_session_id()) {
+//                        Player new_player(player_name, session_id, player_address, timestamp);
+//                        player_node->second = new_player;
+                player_node->second.set_playing_status(false);
+                // todo resend everything?
+            } else if (player_node->second.is_connected() &&
+                       player_node->second.get_player_name() == player_name) { //todo what if different names
+                player_node->second.set_last_active(timestamp);
+                player_node->second.set_last_direction(direction);
+                player_node->second.set_expected_event_no(expected_event_no);
+
+                // todo process message
+            } else {
+                return;
+            }
+        }
+
+        if (!is_game_active_) {
+            player_node = players_.find(player_address);
+            player_node->second.set_connected_status(true);
+        }
+    }
+
 
 private:
+
+    void check_game_over() {
+        int32_t players_active = 0;
+        for (auto &el : players_) {
+            if (el.second.is_playing()) {
+                ++players_active;
+            }
+        }
+
+        if (players_active <= 1) {
+            GameOver ng(event_no_);
+            event_no_++;
+
+            auto go_ptr = std::make_shared<GameOver>(ng);
+            events_.push_back(go_ptr);
+        }
+    }
+
     void tick_one_round() {
 
     }
@@ -307,32 +336,30 @@ private:
 
         std::vector<std::string> ready_players;
 
+        std::vector<NetworkAddress> to_remove;
         for (auto &el : players_) {
             auto player = el.second;
 
             if (timestamp - player.get_last_active() > TIMEOUT_LIMIT) {
                 player.set_connected_status(false);
+                to_remove.push_back(el.first);
                 // todo maybe should be removed from players?
             } else if (player.is_connected() && player.get_last_direction() != 0) {
                 ++players_ready;
                 ready_players.push_back(player.get_player_name());
+            } else { // connected player with direction == 0
+                return;
             }
+        }
+        for (auto &player_address : to_remove) {
+            players_.erase(player_address);
         }
 
         if (players_ready > 1) {
             is_game_active_ = true;
             game_id_ = (uint32_t) rand();
 
-            for (auto &el : players_) {
-                auto player = el.second;
-
-                if (player.get_last_direction() == 0) {
-                    player.set_connected_status(false);
-                }
-            }
-
             start_game(ready_players);
-
             send_start_messages();
 
         }
@@ -390,7 +417,8 @@ private:
             auto head_pos = el.second.get_head().get_position();
             if (board_.is_empty(head_pos)) {
                 board_.take_position(head_pos);
-                Pixel new_pixel(event_no_, el.second.get_player_number(), (uint32_t) head_pos.first, (uint32_t) head_pos.second);
+                Pixel new_pixel(event_no_, el.second.get_player_number(), (uint32_t) head_pos.first,
+                                (uint32_t) head_pos.second);
                 ++event_no_;
                 auto px_ptr = std::make_shared<Pixel>(new_pixel);
                 events_.push_back(px_ptr);
@@ -416,6 +444,7 @@ private:
     std::deque<std::shared_ptr<Event>> events_;
     GameBoard board_;
 
+    std::set<std::string> player_names_;
     std::map<NetworkAddress, Player> players_;
     std::vector<std::pair<NetworkAddress, Player>> players_sorted_;
     std::map<NetworkAddress, Observer> observers_;
