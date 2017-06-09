@@ -49,23 +49,29 @@ public:
             throw std::runtime_error("Error while polling");
         } else if (ret > 0) {
             if (sockets_fds_[0].revents & POLLIN) {
-                char raw_msg[MAX_UDP_PACKET_SIZE];
-                struct sockaddr_in client_address;
-                socklen_t rcva_len = (socklen_t) sizeof(client_address);
-                ssize_t len = recvfrom(sockets_fds_[0].fd, &raw_msg, MAX_UDP_PACKET_SIZE, 0,
-                                       (struct sockaddr *) &client_address, &rcva_len);
-                if (len < 0) {
-                    throw std::runtime_error("Error while reading.");
-                }
-                std::string message(raw_msg, (size_t) len);
-                NetworkAddress sender(client_address);
+                std::pair<std::string, struct sockaddr_in> received;
                 res.first = true;
                 try {
-                    res.second = ClientMessage(message);
-                    res.second.set_sender(sender);
+                    auto try_receive = sockets_[0].receive();
+                    received.first = try_receive.first;
+                    received.second = try_receive.second;
                 } catch (std::runtime_error e) {
                     std::cerr << e.what() << std::endl;
                     res.first = false;
+                }
+
+                if (res.first) {
+                    auto message = received.first;
+
+                    NetworkAddress sender(received.second);
+                    res.first = true;
+                    try {
+                        res.second = ClientMessage(message);
+                        res.second.set_sender(sender);
+                    } catch (std::runtime_error e) {
+                        std::cerr << e.what() << std::endl;
+                        res.first = false;
+                    }
                 }
             }
 

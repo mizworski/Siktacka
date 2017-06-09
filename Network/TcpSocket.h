@@ -23,7 +23,7 @@ void open(std::string hostname, std::string port) {
         addr_hints.ai_socktype = SOCK_STREAM;
         addr_hints.ai_protocol = IPPROTO_TCP;
         int32_t err = getaddrinfo(hostname.c_str(), port.c_str(), &addr_hints, &addr_result);
-        if (err != 0) { // system error
+        if (err != 0) {
             std::string err_msg("Error in getaddrinfo ");
             err_msg += gai_strerror(err);
             throw std::runtime_error(err_msg);
@@ -34,7 +34,6 @@ void open(std::string hostname, std::string port) {
             throw std::runtime_error("Error while opening socket");
         }
 
-        // connect socket to the server
         if (connect(socket_, addr_result->ai_addr, addr_result->ai_addrlen) < 0) {
             throw std::runtime_error("Error while connecting to socket");
         }

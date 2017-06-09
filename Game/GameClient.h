@@ -27,41 +27,45 @@ public:
     }
 
     void receive_message_from_server() {
-        std::string message(game_socket_.receive());
+        try {
+            auto receive = game_socket_.receive();
+            std::string message(receive.first);
 
-        ServerDatagram datagram(message);
+            ServerDatagram datagram(message);
 
-        std::cout << "game_id=" << datagram.get_game_id() << std::endl;
-        auto events = datagram.get_events();
-        for (auto &event : events) {
-            int8_t type = event->get_type();
-//            std::cout << "event_type=" << +type << std::endl;
-            std::shared_ptr<NewGame> ng_ptr = std::dynamic_pointer_cast<NewGame>(event);
-            if (ng_ptr) {
-                NewGame ng(*ng_ptr.get());
-                std::cout << "x=" << ng.get_maxx() << " y=" << ng.get_maxy() << std::endl;;
+            std::cout << "game_id=" << datagram.get_game_id() << std::endl;
+            auto events = datagram.get_events();
+            for (auto &event : events) {
+                int8_t type = event->get_type();
+                std::shared_ptr<NewGame> ng_ptr = std::dynamic_pointer_cast<NewGame>(event);
+                if (ng_ptr) {
+                    NewGame ng(*ng_ptr.get());
+                    std::cout << "x=" << ng.get_maxx() << " y=" << ng.get_maxy() << std::endl;;
 
-                auto players = ng.get_players();
-                for (auto &player : players) {
-                    std::cout << "player=" << player << std::endl;
+                    auto players = ng.get_players();
+                    for (auto &player : players) {
+                        std::cout << "player=" << player << std::endl;
+                    }
+                }
+                std::shared_ptr<Pixel> pixel = std::dynamic_pointer_cast<Pixel>(event);
+                if (pixel) {
+                    std::cout << "player=" << +pixel->get_player_number()<< " x="
+                              << pixel->get_x() <<" y=" << pixel->get_y() << std::endl;;
+
+                }
+                std::shared_ptr<PlayerEliminated> pe = std::dynamic_pointer_cast<PlayerEliminated>(event);
+                if (pe) {
+                    std::cout << "player_eliminated=" << +pe->get_player_number() << std::endl;
+
+                }
+                std::shared_ptr<GameOver> go = std::dynamic_pointer_cast<GameOver>(event);
+                if (go) {
+                    std::cout << "game_over" << std::endl;
+
                 }
             }
-            std::shared_ptr<Pixel> pixel = std::dynamic_pointer_cast<Pixel>(event);
-            if (pixel) {
-                std::cout << "player=" << +pixel->get_player_number()<< " x="
-                          << pixel->get_x() <<" y=" << pixel->get_y() << std::endl;;
-
-            }
-            std::shared_ptr<PlayerEliminated> pe = std::dynamic_pointer_cast<PlayerEliminated>(event);
-            if (pe) {
-                std::cout << "player_eliminated=" << +pe->get_player_number() << std::endl;
-
-            }
-            std::shared_ptr<GameOver> go = std::dynamic_pointer_cast<GameOver>(event);
-            if (go) {
-                std::cout << "game_over" << std::endl;
-
-            }
+        } catch (std::runtime_error e) {
+            std::cerr << e.what() << std::endl;
         }
     }
 

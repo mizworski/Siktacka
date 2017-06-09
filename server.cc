@@ -4,10 +4,6 @@
 #include <iostream>
 #include "Game/GameServer.h"
 
-class Game {
-
-};
-
 void parse_arguments(int argc, char *const *argv, int64_t &width, int64_t &height, int64_t &port, int64_t &game_speed,
                      int64_t &turn_speed, int64_t &random_seed);
 
@@ -26,11 +22,14 @@ int main(int argc, char **argv) {
         return 2137;
     }
 
-    GameServer server(width, height, port, game_speed, turn_speed, random_seed);
+    try {
+        GameServer server(width, height, port, game_speed, turn_speed, random_seed);
+        server.start();
+    } catch (std::runtime_error e) {
+        std::cerr << e.what() << std::endl;
+        return 2137;
+    }
 
-    server.start();
-
-//    std::cout << random_seed << ":" << turn_speed_ << game_speed_ << port << height << width;
 
     return 42;
 }

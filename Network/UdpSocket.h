@@ -45,7 +45,7 @@ public:
         }
     }
 
-    std::string receive() {
+    std::pair<std::string, struct sockaddr_in> receive() {
         struct sockaddr_in server_address;
         char raw_msg[MAX_DATAGRAM_SIZE];
 
@@ -60,7 +60,7 @@ public:
 
         std::string res(raw_msg, (unsigned long) rcv_len);
 
-        return res;
+        return {res, server_address};
     }
 
     int32_t get_descriptor() {

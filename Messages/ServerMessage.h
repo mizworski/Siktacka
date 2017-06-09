@@ -374,9 +374,6 @@ public:
 
         while (!events_str.empty()) {
             if (events_str.length() < 13) {
-                for (unsigned char byte : events_str) {
-                    std::cout << std::hex << +byte << "#";
-                }
                 std::cout << std::endl;
                 throw std::runtime_error("Message is incomplete. Suffix of message is too short to be event.");
             }

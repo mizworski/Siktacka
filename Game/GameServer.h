@@ -237,7 +237,7 @@ public:
                 response.first = poll_res.first;
                 response.second = poll_res.second;
             } catch (std::runtime_error e) {
-                std::cerr << e.what() << std::endl;
+                std::cerr << e.what() << std::endl; //todo continue?
             }
 
             if (response.first) {
