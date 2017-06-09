@@ -17,6 +17,8 @@
 #include <functional>
 #include <utility>
 
+const uint16_t TIMEOUT_LIMIT = 2;
+
 class Head {
 public:
     Head() {}
@@ -41,11 +43,14 @@ private:
     float direction_;
 };
 
-class Player {
+class Client {
 public:
-    Player(int64_t session_id, NetworkAddress address) : session_id_(session_id), address_(address) {
-
-    }
+    Client(int64_t session_id,
+           NetworkAddress address,
+           uint64_t timestamp) : session_id_(session_id),
+                                 address_(address),
+                                 is_connected_(true),
+                                 last_active_(timestamp) {}
 
     int64_t get_session_id() {
         return session_id_;
@@ -55,10 +60,75 @@ public:
         return address_;
     }
 
-private:
-    Head head_;
+    void set_connected_status(bool status) {
+        is_connected_ = status;
+    }
+
+    bool is_connected() {
+        return is_connected_;
+    }
+
+    void set_last_active(uint64_t timestamp) {
+        last_active_ = timestamp;
+    }
+
+    uint64_t get_last_active() {
+        return last_active_;
+    }
+
+protected:
     int64_t session_id_;
     NetworkAddress address_;
+    bool is_connected_;
+    uint64_t last_active_;
+};
+
+class Observer : public Client {
+public:
+    Observer(int64_t session_id,
+             NetworkAddress address,
+             uint64_t timestamp) : Client(session_id, address, timestamp) {
+
+    }
+};
+
+class Player : public Client {
+public:
+    Player(std::string player_name,
+           int64_t session_id,
+           NetworkAddress address,
+           uint64_t timestamp) : Client(session_id, address, timestamp),
+                                 player_name_(player_name),
+                                 is_playing_(false),
+                                 direction_(0) {
+
+    }
+
+    std::string get_player_name() {
+        return player_name_;
+    }
+
+    void set_last_direction(char direction) {
+        direction_ = direction;
+    }
+
+    char get_last_direction() {
+        return direction_;
+    }
+
+    void set_playing_status(bool status) {
+        is_playing_ = status;
+    }
+
+    bool is_playing() {
+        return is_playing_;
+    }
+
+private:
+    Head head_;
+    std::string player_name_;
+    bool is_playing_;
+    char direction_;
 };
 
 class GameBoard {
@@ -92,9 +162,8 @@ public:
                int64_t random_seed) : width_(width), height_(height), port_(port), game_speed_(game_speed),
                                       turn_speed_(turn_speed), random_state_(random_seed),
                                       board_(width, height),
-                                      sockets_(1, (uint16_t) port) {
-        game_id_ = (uint32_t) rand();
-    }
+                                      sockets_(1, (uint16_t) port),
+                                      is_game_active_(false) {}
 
     void start() {
 #pragma clang diagnostic push
@@ -111,31 +180,61 @@ public:
             }
 
             if (response.first) {
+                uint64_t timestamp = (uint64_t) time(NULL);
                 auto message = response.second;
                 auto player_address = message.get_sender();
                 auto session_id = message.get_session_id();
+                auto player_name = message.get_player_name_();
+                auto direction = message.get_turn_direction();
 
                 auto player_node = players_.find(player_address);
                 if (player_node == players_.end()) {
-                    Player new_player(session_id, player_address);
-                    players_.insert({player_address, new_player});
+                    if (player_name != "") {
+                        Player new_player(player_name, session_id, player_address, timestamp);
+                        players_.insert({player_address, new_player});
+                    } else if (observers_.find(player_address) == observers_.end()){
+                        Observer new_obs(session_id, player_address, timestamp);
+                        observers_.insert({player_address, new_obs});
+                    }
                 } else {
-                    auto player = players_.at(player_address);
-
-                    if (session_id < player.get_session_id()) {
+                    if (session_id < player_node->second.get_session_id()) {
                         continue;
-                    } else if (session_id > player.get_session_id()) {
-                        Player new_player(session_id, player_address);
-                        player_node->second = new_player;
-                        // todo remove from current players on map
-                    } else {
-                        // todo process message
                     }
 
+                    if (player_name == "") {
+                        players_.erase(player_address);
+                        Observer new_obs(session_id, player_address, timestamp);
+                        observers_.insert({player_address, new_obs});
+//                        player_node->second.set_connected_status(false);
+                    } else if (session_id > player_node->second.get_session_id()) {
+//                        Player new_player(player_name, session_id, player_address, timestamp);
+//                        player_node->second = new_player;
+                        player_node->second.set_connected_status(false);
+                    } else if (player_node->second.is_connected() &&
+                               player_node->second.get_player_name() == player_name) { //todo what if different names
+                        player_node->second.set_last_active(timestamp);
+                        player_node->second.set_last_direction(direction);
+                        // todo process message
+                    }
+                }
+                player_node = players_.find(player_address);
 
+                if (!is_game_active_) {
+                    player_node->second.set_connected_status(true);
                 }
 
+            } // end of processing message
+
+
+            if (!is_game_active_) {
+                check_if_start();
             }
+            // todo check_if_start();
+
+            if (is_game_active_) {
+                // todo process_one_turn();
+            }
+
         }
 #pragma clang diagnostic pop
     }
@@ -149,6 +248,42 @@ private:
         return res;
     }
 
+    void check_if_start() {
+        uint64_t timestamp = (uint64_t) time(NULL);
+
+        uint16_t players_ready = 0;
+
+        for (auto &el : players_) {
+            auto player = el.second;
+
+            if (timestamp - player.get_last_active() > TIMEOUT_LIMIT) {
+                player.set_connected_status(false);
+            } else if (player.is_connected() && player.get_last_direction() != 0) {
+                ++players_ready;
+            }
+        }
+
+        if (players_ready > 1) {
+            is_game_active_ = true;
+            game_id_ = (uint32_t) rand();
+
+            for (auto &el : players_) {
+                auto player = el.second;
+
+                if (player.get_last_direction() == 0) {
+                    player.set_connected_status(false);
+                }
+            }
+
+
+            std::cout << "Zaczynamy!" << std::endl;
+        }
+
+        std::cout << "aktywnych_graczy=" << players_ready << std::endl;
+
+        //todo send messages, init heads
+    }
+
     int64_t width_;
     int64_t height_;
     int64_t port_;
@@ -158,13 +293,15 @@ private:
 
     uint32_t game_id_;
 
-    std::queue<std::shared_ptr<Event>> events_to_send_;
-    std::queue<std::shared_ptr<Event>> events_sent_;
+//    std::queue<std::shared_ptr<Event>> events_to_send_;
+//    std::queue<std::shared_ptr<Event>> events_sent_;
     GameBoard board_;
 
     std::map<NetworkAddress, Player> players_;
-
+    std::map<NetworkAddress, Observer> observers_;
     PollSockets sockets_;
+
+    bool is_game_active_;
 };
 
 
