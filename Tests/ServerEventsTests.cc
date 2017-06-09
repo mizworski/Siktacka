@@ -1,5 +1,5 @@
 #include <iostream>
-#include "../ServerMessage.h"
+#include "../Messages/ServerMessage.h"
 
 void test_px(Pixel &e) {
     std::string e_str(e.get_message());

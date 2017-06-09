@@ -2,7 +2,7 @@
 #include <stdlib.h>    /* for exit */
 #include <getopt.h>
 #include <iostream>
-#include "GameServer.h"
+#include "Game/GameServer.h"
 
 class Game {
 

@@ -1,5 +1,5 @@
 #include <iostream>
-#include "../ClientMessage.h"
+#include "../Messages/ClientMessage.h"
 
 int main() {
     ClientMessage cm(10, -5, 14, "abcd");

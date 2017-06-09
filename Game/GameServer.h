@@ -8,9 +8,9 @@
 #include <deque>
 #include <queue>
 #include <unordered_set>
-#include "ServerMessage.h"
-#include "UdpSocket.h"
-#include "PollSockets.h"
+#include "../Messages/ServerMessage.h"
+#include "../Network/UdpSocket.h"
+#include "../Network/PollSockets.h"
 #include <boost/functional/hash.hpp>
 #include <unordered_map>
 #include <boost/functional/hash.hpp>

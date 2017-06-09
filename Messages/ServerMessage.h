@@ -7,7 +7,7 @@
 #include <sstream>
 #include <netinet/in.h>
 #include <iostream>
-#include "HelperFunctions.h"
+#include "../Network/HelperFunctions.h"
 
 #include <boost/crc.hpp>
 #include <boost/cstdint.hpp>

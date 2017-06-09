@@ -10,8 +10,8 @@
 #include <vector>
 #include <netinet/in.h>
 #include <iostream>
-#include "HelperFunctions.h"
-#include "NetworkAddress.h"
+#include "../Network/HelperFunctions.h"
+#include "../Network/NetworkAddress.h"
 
 class ClientMessage {
 public:

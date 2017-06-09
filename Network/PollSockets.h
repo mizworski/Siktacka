@@ -8,8 +8,8 @@
 #include <vector>
 #include <queue>
 #include "UdpSocket.h"
-#include "ClientMessage.h"
-#include "ServerMessage.h"
+#include "../Messages/ClientMessage.h"
+#include "../Messages/ServerMessage.h"
 
 const uint16_t MAX_UDP_PACKET_SIZE = 512;
 

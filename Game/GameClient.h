@@ -9,9 +9,9 @@
 #include <netdb.h>
 #include <cstring>
 #include <sstream>
-#include "ClientMessage.h"
-#include "UdpSocket.h"
-#include "ServerMessage.h"
+#include "../Messages/ClientMessage.h"
+#include "../Network/UdpSocket.h"
+#include "../Messages/ServerMessage.h"
 
 class GameClient {
 public:

@@ -1,6 +1,6 @@
 
 #include "GameClient.h"
-#include "HelperFunctions.h"
+#include "../Network/HelperFunctions.h"
 
 GameClient::GameClient(std::string &player_name, std::string &game_server_host, uint64_t game_server_port,
                        std::string ui_server_host, uint64_t ui_server_port) : player_name_(player_name),
