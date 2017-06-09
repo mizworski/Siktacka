@@ -124,6 +124,18 @@ public:
         return is_playing_;
     }
 
+    bool operator==(const Player &other) const {
+        return player_name_ == other.player_name_;
+    }
+
+    bool operator!=(const Player &other) const {
+        return !(*this == other);
+    }
+
+    bool operator<(const Player &other) const {
+        return player_name_ < other.player_name_;
+    }
+
 private:
     Head head_;
     std::string player_name_;
@@ -171,6 +183,7 @@ public:
         while (true) {
             std::pair<bool, ClientMessage> response;
             response.first = false;
+            // todo measure time
             try {
                 auto poll_res = sockets_.poll_sockets();
                 response.first = poll_res.first;
@@ -193,7 +206,7 @@ public:
                         Player new_player(player_name, session_id, player_address, timestamp);
                         new_player.set_last_direction(direction);
                         players_.insert({player_address, new_player});
-                    } else if (observers_.find(player_address) == observers_.end()){
+                    } else if (observers_.find(player_address) == observers_.end()) {
                         Observer new_obs(session_id, player_address, timestamp);
                         observers_.insert({player_address, new_obs});
                     }
@@ -230,11 +243,12 @@ public:
             if (!is_game_active_) {
                 check_if_start();
             }
-            // todo check_if_start();
 
             if (is_game_active_) {
-                // todo process_one_turn();
+                tick_one_round();
             }
+
+            // todo check if 20 ms passed since measuring time
 
         }
 #pragma clang diagnostic pop
@@ -242,6 +256,10 @@ public:
 
 
 private:
+    void tick_one_round() {
+
+    }
+
     int64_t rand() {
         int64_t res = random_state_;
         random_state_ *= 279470273;
@@ -279,25 +297,42 @@ private:
                 }
             }
 
-            is_game_active_ = true;
-            NewGame ng(0, (uint32_t) width_, (uint32_t) height_, ready_players);
-//        auto ng_ptr = std::make_shared<NewGame>(ng);
-            ServerMessage sm(game_id_, std::make_shared<NewGame>(ng));
-            std::vector<NetworkAddress> addresses;
-            for (auto &el : players_) {
+            start_game(ready_players);
+
+        }
+    }
+
+    void start_game(std::vector<std::string> &ready_players) {
+        is_game_active_ = true;
+        event_no_ = 0;
+        NewGame ng(event_no_, (uint32_t) width_, (uint32_t) height_, ready_players);
+        event_no_++;
+
+        auto ng_ptr = std::make_shared<NewGame>(ng);
+        events_.push(ng_ptr);
+        ServerMessage sm(game_id_, ng_ptr);
+
+        std::vector<NetworkAddress> addresses;
+        for (auto &el : players_) {
                 addresses.push_back(el.first);
-
-
-//            sockets_.add_message_to_queue()
             }
 
-            sockets_.add_message_to_queue(addresses, sm);
-            std::cout << "Zaczynamy!" << std::endl;
+        sockets_.add_message_to_queue(addresses, sm);
+        std::cout << "Zaczynamy!" << std::endl;
+
+        //todo init heads
+
+        std::vector<std::pair<Player, NetworkAddress>> players_to_sort;
+        for (auto &el : players_) {
+            players_to_sort.push_back({el.second, el.first});
+        }
+        std::sort(players_to_sort.begin(), players_to_sort.end());
+
+        players_sorted_.clear();
+        for(auto &el : players_to_sort) {
+            players_sorted_.push_back({el.second, el.first});
         }
 
-//        std::cout << "aktywnych_graczy=" << players_ready << std::endl;
-
-            //todo send messages, init heads
     }
 
     int64_t width_;
@@ -309,16 +344,16 @@ private:
 
     uint32_t game_id_;
 
-//    std::queue<std::shared_ptr<Event>> events_to_send_;
-//    std::queue<std::shared_ptr<Event>> events_sent_;
     std::queue<std::shared_ptr<Event>> events_;
     GameBoard board_;
 
     std::map<NetworkAddress, Player> players_;
+    std::vector<std::pair<NetworkAddress, Player>> players_sorted_;
     std::map<NetworkAddress, Observer> observers_;
     PollSockets sockets_;
 
     bool is_game_active_;
+    uint32_t event_no_;
 };
 
 

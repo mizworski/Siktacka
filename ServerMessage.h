@@ -178,7 +178,7 @@ public:
 
     }
 
-    int8_t get_type() {
+    int8_t get_type() override {
         return 0;
     }
 
@@ -248,7 +248,7 @@ public:
         return message;
     }
 
-    int8_t get_type() {
+    int8_t get_type() override {
         return 1;
     }
 private:
@@ -295,7 +295,7 @@ public:
         return message;
     }
 
-    int8_t get_type() {
+    int8_t get_type() override {
         return 2;
     }
 private:

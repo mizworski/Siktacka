@@ -22,8 +22,8 @@ int main(int argc, char **argv) {
     try {
         parse_arguments(argc, argv, width, height, port, game_speed, turn_speed, random_seed);
     } catch (std::runtime_error e) {
-        fprintf(stderr, e.what());
-        exit(EXIT_FAILURE);
+        std::cerr << e.what() <<std::endl;
+        return 2137;
     }
 
     GameServer server(width, height, port, game_speed, turn_speed, random_seed);
