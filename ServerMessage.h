@@ -203,19 +203,19 @@ private:
 
 class Pixel : public Event {
 public:
-    Pixel(uint32_t event_no, char player_number, uint32_t x, uint32_t y) : Event(17, event_no, 1),
+    Pixel(uint32_t event_no, char player_number, uint32_t x, uint32_t y) : Event(18, event_no, 1),
                                                                            player_number_(player_number),
                                                                            x_(x),
                                                                            y_(y) {}
 
     Pixel(std::string const &serialized_message) {
-        if (serialized_message.length() != 21) {
-            throw std::runtime_error("Pixel message of wrong size. Should be exactly 21 bytes.");
+        if (serialized_message.length() != 22) {
+            throw std::runtime_error("Pixel message of wrong size. Should be exactly 22 bytes.");
         }
 
         len_ = (uint32_t) bton(serialized_message.substr(0, 4));
         if (len_ != 18) {
-            throw std::runtime_error("Pixel len value is wrong. Should be 17.");
+            throw std::runtime_error("Pixel len value is wrong. Should be 18.");
         }
 
         event_no_ = (uint32_t) bton(serialized_message.substr(4, 4));

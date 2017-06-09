@@ -363,14 +363,6 @@ private:
 
         auto ng_ptr = std::make_shared<NewGame>(ng);
         events_.push_back(ng_ptr);
-        ServerMessage sm(game_id_, ng_ptr);
-
-        std::vector<NetworkAddress> addresses;
-        for (auto &el : players_) {
-            addresses.push_back(el.first);
-        }
-
-        sockets_.add_message_to_queue(addresses, sm);
         std::cout << "Zaczynamy!" << std::endl;
 
         std::vector<std::pair<Player, NetworkAddress>> players_to_sort;
