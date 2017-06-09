@@ -11,6 +11,7 @@
 #include <sstream>
 #include "ClientMessage.h"
 #include "UdpSocket.h"
+#include "ServerMessage.h"
 
 class GameClient {
 public:
@@ -21,7 +22,6 @@ public:
         ClientMessage cm(session_id_, turn_direction, next_expected_event_no, player_name_);
 
         std::string message(cm.serialize());
-        cm.print_msg();
         game_socket_.send(message, game_server_address_);
 
     }
@@ -29,10 +29,22 @@ public:
     void receive_message_from_server() {
         std::string message(game_socket_.recv());
 
-        std::cout << message << std::endl;
+        ServerDatagram datagram(message);
 
-//        msg = deserialize_message(raw_msg, rcv_len, msg);
+        std::cout << "game_id=" << datagram.get_game_id() << std::endl;
+        auto events = datagram.get_events();
+        for (auto &event : events) {
+            int8_t type = event->get_type();
+            std::cout << "event_type=" << +type << std::endl;
+            std::shared_ptr<NewGame> ng_ptr = std::dynamic_pointer_cast<NewGame>(event);
+            NewGame ng(*ng_ptr.get());
+            std::cout << "x=" << ng.get_maxx() << " y=" << ng.get_maxy() << std::endl;;
 
+            auto players = ng.get_players();
+            for (auto &player : players) {
+                std::cout << "player=" << player << std::endl;
+            }
+        }
     }
 
 private:

@@ -19,7 +19,7 @@ public:
         sockets_fds_ = (pollfd *) calloc(sockets, sizeof(struct pollfd));
 
         for (uint16_t i = 0; i < sockets; ++i) {
-            sockets_fds_[i].events = POLLIN;
+            sockets_fds_[i].events = POLLIN | POLLOUT;
             sockets_fds_[i].revents = 0;
         }
 
@@ -41,7 +41,7 @@ public:
     }
 
     std::pair<bool, ClientMessage> poll_sockets() {
-        int32_t ret = poll(sockets_fds_, 1, 5000);
+        int32_t ret = poll(sockets_fds_, 1, 500);
         std::pair<bool, ClientMessage> res;
         res.first = false;
         if (ret < 0) {
@@ -66,7 +66,7 @@ public:
                     std::cerr << e.what() << std::endl;
                     res.first = false;
                 }
-                res.second.print_msg();
+//                res.second.print_msg();
             }
 
             if ((sockets_fds_[0].revents & POLLOUT) && !messages_to_send.empty()) {

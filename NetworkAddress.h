@@ -26,7 +26,7 @@ public:
         freeaddrinfo(addr_result_);
     }
 
-    NetworkAddress(struct sockaddr_in &address) {
+    NetworkAddress(struct sockaddr_in address) {
         socket_address_ = address;
     }
 

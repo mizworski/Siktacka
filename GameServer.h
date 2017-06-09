@@ -17,7 +17,7 @@
 #include <functional>
 #include <utility>
 
-const uint16_t TIMEOUT_LIMIT = 2;
+const uint16_t TIMEOUT_LIMIT = 200;
 
 class Head {
 public:
@@ -191,6 +191,7 @@ public:
                 if (player_node == players_.end()) {
                     if (player_name != "") {
                         Player new_player(player_name, session_id, player_address, timestamp);
+                        new_player.set_last_direction(direction);
                         players_.insert({player_address, new_player});
                     } else if (observers_.find(player_address) == observers_.end()){
                         Observer new_obs(session_id, player_address, timestamp);
@@ -253,6 +254,8 @@ private:
 
         uint16_t players_ready = 0;
 
+        std::vector<std::string> ready_players;
+
         for (auto &el : players_) {
             auto player = el.second;
 
@@ -260,6 +263,7 @@ private:
                 player.set_connected_status(false);
             } else if (player.is_connected() && player.get_last_direction() != 0) {
                 ++players_ready;
+                ready_players.push_back(player.get_player_name());
             }
         }
 
@@ -275,13 +279,25 @@ private:
                 }
             }
 
+            is_game_active_ = true;
+            NewGame ng(0, (uint32_t) width_, (uint32_t) height_, ready_players);
+//        auto ng_ptr = std::make_shared<NewGame>(ng);
+            ServerMessage sm(game_id_, std::make_shared<NewGame>(ng));
+            std::vector<NetworkAddress> addresses;
+            for (auto &el : players_) {
+                addresses.push_back(el.first);
 
+
+//            sockets_.add_message_to_queue()
+            }
+
+            sockets_.add_message_to_queue(addresses, sm);
             std::cout << "Zaczynamy!" << std::endl;
         }
 
-        std::cout << "aktywnych_graczy=" << players_ready << std::endl;
+//        std::cout << "aktywnych_graczy=" << players_ready << std::endl;
 
-        //todo send messages, init heads
+            //todo send messages, init heads
     }
 
     int64_t width_;
@@ -295,6 +311,7 @@ private:
 
 //    std::queue<std::shared_ptr<Event>> events_to_send_;
 //    std::queue<std::shared_ptr<Event>> events_sent_;
+    std::queue<std::shared_ptr<Event>> events_;
     GameBoard board_;
 
     std::map<NetworkAddress, Player> players_;

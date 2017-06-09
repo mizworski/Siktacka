@@ -73,6 +73,9 @@ public:
         return len_ + 4;
     }
 
+    virtual int8_t get_type() {
+        return -1;
+    }
 protected:
     uint32_t len_;
     uint32_t event_no_;
@@ -81,15 +84,17 @@ protected:
 
 class NewGame : public Event {
 public:
-    NewGame(uint32_t len,
-            uint32_t event_no,
-            char event_type,
+    NewGame(uint32_t event_no,
             uint32_t maxx,
             uint32_t maxy,
-            std::vector<std::string> &players) : Event(len, event_no, event_type),
+            std::vector<std::string> &players) : Event(17, event_no, 0),
                                                  maxx_(maxx),
                                                  maxy_(maxy),
-                                                 players_(players) {}
+                                                 players_(players) {
+        for (auto &player : players) {
+            len_ += player.length() + 1;
+        }
+    }
 
     NewGame(std::string const &serialized_message) {
         if (serialized_message.length() < 21) {
@@ -173,6 +178,22 @@ public:
 
     }
 
+    int8_t get_type() {
+        return 0;
+    }
+
+    uint32_t get_maxx() {
+        return maxx_;
+    }
+
+    uint32_t get_maxy() {
+        return maxy_;
+    }
+
+    std::vector<std::string> get_players() {
+        return players_;
+    }
+
 private:
     uint32_t maxx_;
     uint32_t maxy_;
@@ -181,9 +202,9 @@ private:
 
 class Pixel : public Event {
 public:
-    Pixel(uint32_t len, uint32_t event_no, char event_type, uint32_t x, uint32_t y) : Event(len, event_no, event_type),
-                                                                                      x_(x),
-                                                                                      y_(y) {}
+    Pixel(uint32_t event_no, uint32_t x, uint32_t y) : Event(17, event_no, 1),
+                                                       x_(x),
+                                                       y_(y) {}
 
     Pixel(std::string const &serialized_message) {
         if (serialized_message.length() != 21) {
@@ -227,6 +248,9 @@ public:
         return message;
     }
 
+    int8_t get_type() {
+        return 1;
+    }
 private:
     uint32_t x_;
     uint32_t y_;
@@ -234,11 +258,8 @@ private:
 
 class PlayerEliminated : public Event {
 public:
-    PlayerEliminated(uint32_t len,
-                     uint32_t event_no,
-                     char event_type,
-                     char player_number) : Event(len, event_no, event_type),
-                                           player_number_(player_number) {}
+    PlayerEliminated(uint32_t event_no, char player_number) : Event(10, event_no, 2),
+                                                              player_number_(player_number) {}
 
     PlayerEliminated(std::string const &serialized_message) {
         if (serialized_message.length() != 14) {
@@ -274,15 +295,16 @@ public:
         return message;
     }
 
+    int8_t get_type() {
+        return 2;
+    }
 private:
     char player_number_;
 };
 
 class GameOver : public Event {
 public:
-    GameOver(uint32_t len,
-             uint32_t event_no,
-             char event_type) : Event(len, event_no, event_type) {}
+    GameOver(uint32_t event_no) : Event(9, event_no, 3) {}
 
     GameOver(std::string const &serialized_message) {
         if (serialized_message.length() != 13) {
@@ -303,6 +325,10 @@ public:
             throw std::runtime_error("Wrong control sum.");
         }
         assert(check_control_sum(checksum));
+    }
+
+    int8_t get_type() {
+        return 3;
     }
 };
 
@@ -370,6 +396,14 @@ public:
         return message;
     }
 
+    uint32_t get_game_id() {
+        return game_id_;
+    }
+
+    std::vector<std::shared_ptr<Event>> get_events() {
+        return events_;
+    }
+
 private:
     uint32_t game_id_;
     std::vector<std::shared_ptr<Event>> events_;
@@ -381,8 +415,17 @@ public:
 
     ServerMessage(uint32_t game_id,
                   std::vector<std::shared_ptr<Event>> const &events) : game_id_(game_id), events_(events) {}
+
     ServerMessage(uint32_t game_id,
                   std::vector<std::shared_ptr<Event>> &&events) : game_id_(game_id), events_(std::move(events)) {}
+    ServerMessage(uint32_t game_id,
+                  std::shared_ptr<Event> &event) : game_id_(game_id), events_() {
+        events_.push_back(event);
+    }
+    ServerMessage(uint32_t game_id,
+                  std::shared_ptr<Event> &&event) : game_id_(game_id), events_() {
+        events_.push_back(event);
+    }
 
     void push_back(std::shared_ptr<Event> const &event) {
         events_.push_back(event);

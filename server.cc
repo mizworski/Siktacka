@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
 
     server.start();
 
-    std::cout << random_seed << ":" << turn_speed << game_speed << port << height << width;
+//    std::cout << random_seed << ":" << turn_speed << game_speed << port << height << width;
 
     return 42;
 }
