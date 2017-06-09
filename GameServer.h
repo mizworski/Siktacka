@@ -76,11 +76,20 @@ public:
         return last_active_;
     }
 
+    void set_expected_event_no(uint32_t event_no) {
+        expected_event_no = event_no;
+    }
+
+    uint32_t get_expected_event_no() {
+        return expected_event_no;
+    }
+
 protected:
     int64_t session_id_;
     NetworkAddress address_;
     bool is_connected_;
     uint64_t last_active_;
+    uint32_t expected_event_no;
 };
 
 class Observer : public Client {
@@ -136,11 +145,28 @@ public:
         return player_name_ < other.player_name_;
     }
 
+    void set_head(Head &head) {
+        head_ = head;
+    }
+
+    Head get_head() {
+        return head_;
+    }
+
+    void set_player_number(char number) {
+        player_number_ = number;
+    }
+
+    char get_player_number() {
+        return player_number_;
+    }
+
 private:
     Head head_;
     std::string player_name_;
     bool is_playing_;
     char direction_;
+    char player_number_;
 };
 
 class GameBoard {
@@ -152,7 +178,7 @@ public:
     }
 
     bool is_empty(std::pair<int64_t, int64_t> pos) {
-        bool res = taken_positions_.find(pos) != taken_positions_.end();
+        bool res = taken_positions_.find(pos) == taken_positions_.end();
         res = res && pos.first >= 0 && pos.first < maxx_;
         res = res && pos.second >= 0 && pos.second < maxy_;
         return res;
@@ -199,15 +225,18 @@ public:
                 auto session_id = message.get_session_id();
                 auto player_name = message.get_player_name_();
                 auto direction = message.get_turn_direction();
+                auto expected_event_no = message.get_next_expected_event_no_();
 
                 auto player_node = players_.find(player_address);
                 if (player_node == players_.end()) {
                     if (player_name != "") {
                         Player new_player(player_name, session_id, player_address, timestamp);
                         new_player.set_last_direction(direction);
+                        new_player.set_expected_event_no(expected_event_no);
                         players_.insert({player_address, new_player});
                     } else if (observers_.find(player_address) == observers_.end()) {
                         Observer new_obs(session_id, player_address, timestamp);
+                        new_obs.set_expected_event_no(expected_event_no);
                         observers_.insert({player_address, new_obs});
                     }
                 } else {
@@ -218,16 +247,20 @@ public:
                     if (player_name == "") {
                         players_.erase(player_address);
                         Observer new_obs(session_id, player_address, timestamp);
+                        new_obs.set_expected_event_no(expected_event_no);
                         observers_.insert({player_address, new_obs});
 //                        player_node->second.set_connected_status(false);
                     } else if (session_id > player_node->second.get_session_id()) {
 //                        Player new_player(player_name, session_id, player_address, timestamp);
 //                        player_node->second = new_player;
-                        player_node->second.set_connected_status(false);
+                        player_node->second.set_playing_status(false);
+                        // todo resend everything?
                     } else if (player_node->second.is_connected() &&
                                player_node->second.get_player_name() == player_name) { //todo what if different names
                         player_node->second.set_last_active(timestamp);
                         player_node->second.set_last_direction(direction);
+                        player_node->second.set_expected_event_no(expected_event_no);
+
                         // todo process message
                     }
                 }
@@ -279,6 +312,7 @@ private:
 
             if (timestamp - player.get_last_active() > TIMEOUT_LIMIT) {
                 player.set_connected_status(false);
+                // todo maybe should be removed from players?
             } else if (player.is_connected() && player.get_last_direction() != 0) {
                 ++players_ready;
                 ready_players.push_back(player.get_player_name());
@@ -299,6 +333,25 @@ private:
 
             start_game(ready_players);
 
+            send_start_messages();
+
+        }
+    }
+
+    void send_start_messages() {
+        for (auto &el : players_) {
+            if (el.second.is_connected()) {
+                uint32_t expected_event_no = el.second.get_expected_event_no();
+
+                std::vector<std::shared_ptr<Event>> events_to_send(events_.begin() + expected_event_no,
+                                                                   events_.end());
+
+                ServerMessage message(game_id_, events_to_send);
+
+                if (!events_to_send.empty()) {
+                    sockets_.add_message_to_queue(el.first, message);
+                }
+            }
         }
     }
 
@@ -309,18 +362,16 @@ private:
         event_no_++;
 
         auto ng_ptr = std::make_shared<NewGame>(ng);
-        events_.push(ng_ptr);
+        events_.push_back(ng_ptr);
         ServerMessage sm(game_id_, ng_ptr);
 
         std::vector<NetworkAddress> addresses;
         for (auto &el : players_) {
-                addresses.push_back(el.first);
-            }
+            addresses.push_back(el.first);
+        }
 
         sockets_.add_message_to_queue(addresses, sm);
         std::cout << "Zaczynamy!" << std::endl;
-
-        //todo init heads
 
         std::vector<std::pair<Player, NetworkAddress>> players_to_sort;
         for (auto &el : players_) {
@@ -329,8 +380,34 @@ private:
         std::sort(players_to_sort.begin(), players_to_sort.end());
 
         players_sorted_.clear();
-        for(auto &el : players_to_sort) {
+        uint8_t player_number = 0;
+        for (auto &el : players_to_sort) {
+            el.first.set_player_number(player_number);
             players_sorted_.push_back({el.second, el.first});
+            ++player_number;
+        }
+
+        for (auto &el : players_sorted_) {
+            float_t head_x = (float_t) (rand() % width_ + 0.5); //todo po co te 0.5 skoro zaokraglanie w dol?
+            float_t head_y = (float_t) (rand() % height_ + 0.5);
+            float_t direction = rand() % 360;
+
+            Head player_head(head_x, head_y, direction);
+            el.second.set_head(player_head);
+
+            auto head_pos = el.second.get_head().get_position();
+            if (board_.is_empty(head_pos)) {
+                board_.take_position(head_pos);
+                Pixel new_pixel(event_no_, el.second.get_player_number(), (uint32_t) head_pos.first, (uint32_t) head_pos.second);
+                ++event_no_;
+                auto px_ptr = std::make_shared<Pixel>(new_pixel);
+                events_.push_back(px_ptr);
+            } else {
+                PlayerEliminated pe(event_no_, el.second.get_player_number());
+                ++event_no_;
+                auto pe_ptr = std::make_shared<PlayerEliminated>(pe);
+                events_.push_back(pe_ptr);
+            }
         }
 
     }
@@ -344,7 +421,7 @@ private:
 
     uint32_t game_id_;
 
-    std::queue<std::shared_ptr<Event>> events_;
+    std::deque<std::shared_ptr<Event>> events_;
     GameBoard board_;
 
     std::map<NetworkAddress, Player> players_;

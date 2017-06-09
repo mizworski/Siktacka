@@ -76,6 +76,7 @@ public:
     virtual int8_t get_type() {
         return -1;
     }
+
 protected:
     uint32_t len_;
     uint32_t event_no_;
@@ -202,9 +203,10 @@ private:
 
 class Pixel : public Event {
 public:
-    Pixel(uint32_t event_no, uint32_t x, uint32_t y) : Event(17, event_no, 1),
-                                                       x_(x),
-                                                       y_(y) {}
+    Pixel(uint32_t event_no, char player_number, uint32_t x, uint32_t y) : Event(17, event_no, 1),
+                                                                           player_number_(player_number),
+                                                                           x_(x),
+                                                                           y_(y) {}
 
     Pixel(std::string const &serialized_message) {
         if (serialized_message.length() != 21) {
@@ -212,15 +214,16 @@ public:
         }
 
         len_ = (uint32_t) bton(serialized_message.substr(0, 4));
-        if (len_ != 17) {
+        if (len_ != 18) {
             throw std::runtime_error("Pixel len value is wrong. Should be 17.");
         }
 
         event_no_ = (uint32_t) bton(serialized_message.substr(4, 4));
         event_type_ = (char) bton(serialized_message.substr(8, 1));
 
-        x_ = (uint32_t) bton(serialized_message.substr(9, 4));
-        y_ = (uint32_t) bton(serialized_message.substr(13, 4));
+        player_number_ = (char) bton(serialized_message.substr(9, 1));
+        x_ = (uint32_t) bton(serialized_message.substr(10, 4));
+        y_ = (uint32_t) bton(serialized_message.substr(14, 4));
         std::string checksum_str = serialized_message.substr(serialized_message.length() - 4, 4);
         uint32_t checksum = (uint32_t) bton(checksum_str);
         if (!check_control_sum(checksum)) {
@@ -232,6 +235,8 @@ public:
     std::string serialize() override {
         std::ostringstream os;
         std::string message(Event::serialize());
+
+        os << player_number_;
 
         std::vector<unsigned char> x_bytes = ntob(htonl(x_), 4);
         for (auto byte : x_bytes) {
@@ -251,7 +256,13 @@ public:
     int8_t get_type() override {
         return 1;
     }
+
+    char get_player_number() {
+        return player_number_;
+    }
+
 private:
+    char player_number_;
     uint32_t x_;
     uint32_t y_;
 };
@@ -298,6 +309,7 @@ public:
     int8_t get_type() override {
         return 2;
     }
+
 private:
     char player_number_;
 };
@@ -390,9 +402,18 @@ public:
         std::string message(os.str());
         for (auto &event : events_) {
             std::string serialized_event(event->get_message());
+            for (unsigned char byte : serialized_event) {
+                std::cout << std::hex << +byte << "#";
+            }
+            std::cout << std::endl;
             message += serialized_event;
         }
 
+        std::cout << "whole msg:" << std::endl;
+        for (unsigned char byte : message) {
+            std::cout << std::hex << +byte << "#";
+        }
+        std::cout << std::endl;
         return message;
     }
 
@@ -418,10 +439,12 @@ public:
 
     ServerMessage(uint32_t game_id,
                   std::vector<std::shared_ptr<Event>> &&events) : game_id_(game_id), events_(std::move(events)) {}
+
     ServerMessage(uint32_t game_id,
                   std::shared_ptr<Event> &event) : game_id_(game_id), events_() {
         events_.push_back(event);
     }
+
     ServerMessage(uint32_t game_id,
                   std::shared_ptr<Event> &&event) : game_id_(game_id), events_() {
         events_.push_back(event);

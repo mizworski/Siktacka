@@ -112,6 +112,13 @@ public:
         messages.push_back(message);
         add_message_to_queue(addresses, messages);
     }
+    void add_message_to_queue(NetworkAddress const &address, ServerMessage &message) {
+        std::vector<NetworkAddress> addresses;
+        addresses.push_back(address);
+        std::vector<ServerMessage> messages;
+        messages.push_back(message);
+        add_message_to_queue(addresses, messages);
+    }
 
 private:
     struct sockaddr_in server;

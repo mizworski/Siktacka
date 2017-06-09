@@ -20,14 +20,14 @@ int main(int argc, char **argv) {
         parse_arguments(argc, argv, player_name, game_server_host,
                         game_server_port, ui_server_host, ui_server_port);
     } catch (std::runtime_error e) {
-        fprintf(stderr, e.what());
-        exit(EXIT_FAILURE);
+        std::cerr << e.what() << std::endl;
+        return 2137;
     }
 
     GameClient client(player_name, game_server_host, game_server_port, ui_server_host, ui_server_port);
 
 //    client.send_message_to_server(-1, 256);
-    client.send_message_to_server(1, 112);
+    client.send_message_to_server(1, 0);
     client.receive_message_from_server();
 //    client.receive_message_from_server();
 
