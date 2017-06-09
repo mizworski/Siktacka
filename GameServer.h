@@ -239,6 +239,8 @@ public:
 #pragma clang diagnostic pop
     }
 
+
+private:
     void process_message(const std::pair<bool, ClientMessage> &response) {
         uint64_t timestamp = (uint64_t) time(NULL);
         auto message = response.second;
@@ -258,14 +260,17 @@ public:
                 Player new_player(player_name, session_id, player_address, timestamp);
                 new_player.set_last_direction(direction);
                 new_player.set_expected_event_no(expected_event_no);
-                players_.insert({player_address, new_player});
+                std::shared_ptr<Player> player_ptr = std::make_shared<Player>(new_player);
+                players_.insert({player_address, player_ptr});
+
+                send_message({player_address, player_ptr});
             } else if (observers_.find(player_address) == observers_.end()) {
                 Observer new_obs(session_id, player_address, timestamp);
                 new_obs.set_expected_event_no(expected_event_no);
                 observers_.insert({player_address, new_obs});
             }
         } else {
-            if (session_id < player_node->second.get_session_id()) {
+            if (session_id < player_node->second->get_session_id()) {
                 return;
             }
 
@@ -274,17 +279,15 @@ public:
                 Observer new_obs(session_id, player_address, timestamp);
                 new_obs.set_expected_event_no(expected_event_no);
                 observers_.insert({player_address, new_obs});
-//                        player_node->second.set_connected_status(false);
-            } else if (session_id > player_node->second.get_session_id()) {
-//                        Player new_player(player_name, session_id, player_address, timestamp);
-//                        player_node->second = new_player;
-                player_node->second.set_playing_status(false);
+            } else if (session_id > player_node->second->get_session_id()) {
+                player_node->second->set_playing_status(false);
                 // todo resend everything?
-            } else if (player_node->second.is_connected() &&
-                       player_node->second.get_player_name() == player_name) { //todo what if different names
-                player_node->second.set_last_active(timestamp);
-                player_node->second.set_last_direction(direction);
-                player_node->second.set_expected_event_no(expected_event_no);
+            } else if (player_node->second->is_connected() &&
+                       player_node->second->get_player_name() == player_name) { //todo what if different names
+                player_node->second->set_last_active(timestamp);
+                player_node->second->set_last_direction(direction);
+                player_node->second->set_expected_event_no(expected_event_no);
+                send_message({player_address, player_node->second});
 
                 // todo process message
             } else {
@@ -294,17 +297,14 @@ public:
 
         if (!is_game_active_) {
             player_node = players_.find(player_address);
-            player_node->second.set_connected_status(true);
+            player_node->second->set_connected_status(true);
         }
     }
-
-
-private:
 
     void check_game_over() {
         int32_t players_active = 0;
         for (auto &el : players_) {
-            if (el.second.is_playing()) {
+            if (el.second->is_playing()) {
                 ++players_active;
             }
         }
@@ -340,13 +340,13 @@ private:
         for (auto &el : players_) {
             auto player = el.second;
 
-            if (timestamp - player.get_last_active() > TIMEOUT_LIMIT) {
-                player.set_connected_status(false);
+            if (timestamp - player->get_last_active() > TIMEOUT_LIMIT) {
+                player->set_connected_status(false);
                 to_remove.push_back(el.first);
                 // todo maybe should be removed from players?
-            } else if (player.is_connected() && player.get_last_direction() != 0) {
+            } else if (player->is_connected() && player->get_last_direction() != 0) {
                 ++players_ready;
-                ready_players.push_back(player.get_player_name());
+                ready_players.push_back(player->get_player_name());
             } else { // connected player with direction == 0
                 return;
             }
@@ -360,15 +360,28 @@ private:
             game_id_ = (uint32_t) rand();
 
             start_game(ready_players);
-            send_start_messages();
+//            send_start_messages();
 
+        }
+    }
+
+    void send_message(std::pair<NetworkAddress, std::shared_ptr<Player>> player) {
+        uint32_t expected_event_no = player.second->get_expected_event_no();
+
+        std::vector<std::shared_ptr<Event>> events_to_send(events_.begin() + expected_event_no,
+                                                           events_.end());
+
+        ServerMessage message(game_id_, events_to_send);
+
+        if (!events_to_send.empty()) {
+            sockets_.add_message_to_queue(player.first, message);
         }
     }
 
     void send_start_messages() {
         for (auto &el : players_) {
-            if (el.second.is_connected()) {
-                uint32_t expected_event_no = el.second.get_expected_event_no();
+            if (el.second->is_connected()) {
+                uint32_t expected_event_no = el.second->get_expected_event_no();
 
                 std::vector<std::shared_ptr<Event>> events_to_send(events_.begin() + expected_event_no,
                                                                    events_.end());
@@ -392,38 +405,40 @@ private:
         events_.push_back(ng_ptr);
         std::cout << "Zaczynamy!" << std::endl;
 
-        std::vector<std::pair<Player, NetworkAddress>> players_to_sort;
+        std::vector<std::pair<std::shared_ptr<Player>, NetworkAddress>> players_to_sort;
         for (auto &el : players_) {
             players_to_sort.push_back({el.second, el.first});
         }
-        std::sort(players_to_sort.begin(), players_to_sort.end());
+        std::sort(players_to_sort.begin(), players_to_sort.end()); // todo validate
 
         players_sorted_.clear();
         uint8_t player_number = 0;
         for (auto &el : players_to_sort) {
-            el.first.set_player_number(player_number);
+            el.first->set_player_number(player_number);
             players_sorted_.push_back({el.second, el.first});
             ++player_number;
         }
 
         for (auto &el : players_sorted_) {
+            el.second->set_playing_status(true);
+
             float_t head_x = (float_t) (rand() % width_ + 0.5); //todo po co te 0.5 skoro zaokraglanie w dol?
             float_t head_y = (float_t) (rand() % height_ + 0.5);
             float_t direction = rand() % 360;
 
             Head player_head(head_x, head_y, direction);
-            el.second.set_head(player_head);
+            el.second->set_head(player_head);
 
-            auto head_pos = el.second.get_head().get_position();
+            auto head_pos = el.second->get_head().get_position();
             if (board_.is_empty(head_pos)) {
                 board_.take_position(head_pos);
-                Pixel new_pixel(event_no_, el.second.get_player_number(), (uint32_t) head_pos.first,
+                Pixel new_pixel(event_no_, el.second->get_player_number(), (uint32_t) head_pos.first,
                                 (uint32_t) head_pos.second);
                 ++event_no_;
                 auto px_ptr = std::make_shared<Pixel>(new_pixel);
                 events_.push_back(px_ptr);
             } else {
-                PlayerEliminated pe(event_no_, el.second.get_player_number());
+                PlayerEliminated pe(event_no_, el.second->get_player_number());
                 ++event_no_;
                 auto pe_ptr = std::make_shared<PlayerEliminated>(pe);
                 events_.push_back(pe_ptr);
@@ -445,8 +460,8 @@ private:
     GameBoard board_;
 
     std::set<std::string> player_names_;
-    std::map<NetworkAddress, Player> players_;
-    std::vector<std::pair<NetworkAddress, Player>> players_sorted_;
+    std::map<NetworkAddress, std::shared_ptr<Player>> players_;
+    std::vector<std::pair<NetworkAddress, std::shared_ptr<Player>>> players_sorted_;
     std::map<NetworkAddress, Observer> observers_;
     PollSockets sockets_;
 
