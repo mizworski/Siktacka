@@ -261,6 +261,14 @@ public:
         return player_number_;
     }
 
+    uint32_t get_x() {
+        return x_;
+    }
+
+    uint32_t get_y() {
+        return y_;
+    }
+
 private:
     char player_number_;
     uint32_t x_;
@@ -310,6 +318,10 @@ public:
         return 2;
     }
 
+    char get_player_number() {
+        return player_number_;
+    }
+
 private:
     char player_number_;
 };
@@ -353,6 +365,7 @@ public:
         if (serialized_message.length() < 4) {
             throw std::runtime_error("Message too short. Should be at least 4 bytes long.");
         }
+        std::cout << "message_size=" << serialized_message.length() << std::endl;
         assert(serialized_message.length() >= 4);
 
         game_id_ = (uint32_t) bton(serialized_message.substr(0, 4));
@@ -361,6 +374,10 @@ public:
 
         while (!events_str.empty()) {
             if (events_str.length() < 13) {
+                for (unsigned char byte : events_str) {
+                    std::cout << std::hex << +byte << "#";
+                }
+                std::cout << std::endl;
                 throw std::runtime_error("Message is incomplete. Suffix of message is too short to be event.");
             }
             uint32_t event_type_ = (char) bton(events_str.substr(8, 1));
@@ -402,18 +419,18 @@ public:
         std::string message(os.str());
         for (auto &event : events_) {
             std::string serialized_event(event->get_message());
-            for (unsigned char byte : serialized_event) {
-                std::cout << std::hex << +byte << "#";
-            }
-            std::cout << std::endl;
+//            for (unsigned char byte : serialized_event) {
+//                std::cout << std::hex << +byte << "#";
+//            }
+//            std::cout << std::endl;
             message += serialized_event;
         }
 
-        std::cout << "whole msg:" << std::endl;
-        for (unsigned char byte : message) {
-            std::cout << std::hex << +byte << "#";
-        }
-        std::cout << std::endl;
+//        std::cout << "whole msg:" << std::endl;
+//        for (unsigned char byte : message) {
+//            std::cout << std::hex << +byte << "#";
+//        }
+//        std::cout << std::endl;
         return message;
     }
 
@@ -465,12 +482,13 @@ public:
         for (auto &event : events_) {
             if (datagram_size_left >= event->get_size()) {
                 current_events.push_back(event);
+                datagram_size_left -= event->get_size();
             } else {
                 ServerDatagram dg(game_id_, current_events);
                 result.push_back(dg);
                 current_events = {event};
+                datagram_size_left = 512 - (4 + event->get_size());
             }
-            datagram_size_left -= event->get_size();
         }
 
         if (!current_events.empty()) {

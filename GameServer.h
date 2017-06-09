@@ -16,31 +16,36 @@
 #include <boost/functional/hash.hpp>
 #include <functional>
 #include <utility>
+#include <libnet.h>
 
 const uint16_t TIMEOUT_LIMIT = 200;
+const double PI = 3.14159265359;
 
 class Head {
 public:
     Head() {}
 
-    Head(float x, float y, float direction) : x_(x), y_(y), direction_(direction) {}
+    Head(double x, double y, double direction, int64_t turn_speed) : x_(x),
+                                                                     y_(y),
+                                                                     direction_(direction),
+                                                                     turn_speed_(turn_speed) {}
 
     std::pair<int64_t, int64_t> get_position() {
         return {std::floor(x_), std::floor(y_)};
     };
 
-    void turn(int8_t direction, int64_t turning_speed) {
-        direction_ += direction * turning_speed;
-    }
-
-    void move_forward(float delta) {
-
+    void move_forward(double direction) {
+        direction_ += turn_speed_ * direction;
+        x_ += cos(direction_ * PI / 180);
+        y_ += sin(direction_ * PI / 180);
     }
 
 private:
-    float x_;
-    float y_;
-    float direction_;
+    double x_;
+    double y_;
+    double direction_;
+
+    int64_t turn_speed_;
 };
 
 class Client {
@@ -145,11 +150,11 @@ public:
         return player_name_ < other.player_name_;
     }
 
-    void set_head(Head &head) {
+    void set_head(std::shared_ptr<Head> head) {
         head_ = head;
     }
 
-    Head get_head() {
+    std::shared_ptr<Head> get_head() {
         return head_;
     }
 
@@ -161,10 +166,23 @@ public:
         return player_number_;
     }
 
+    void set_alive() {
+        is_alive_ = true;
+    }
+
+    void kill() {
+        is_alive_ = false;
+    }
+
+    bool is_alive() {
+        return is_alive_;
+    }
+
 private:
-    Head head_;
+    std::shared_ptr<Head> head_;
     std::string player_name_;
     bool is_playing_;
+    bool is_alive_;
     char direction_;
     char player_number_;
 };
@@ -177,7 +195,7 @@ public:
         taken_positions_.insert(pos);
     }
 
-    bool is_empty(std::pair<int64_t, int64_t> pos) {
+    bool is_valid(std::pair<int64_t, int64_t> pos) {
         bool res = taken_positions_.find(pos) == taken_positions_.end();
         res = res && pos.first >= 0 && pos.first < maxx_;
         res = res && pos.second >= 0 && pos.second < maxy_;
@@ -210,6 +228,9 @@ public:
             std::pair<bool, ClientMessage> response;
             response.first = false;
             // todo measure time
+//            struct timeval tp;
+//            gettimeofday(&tp, NULL);
+//            int64_t timestamp_before = tp.tv_sec * 1000 + tp.tv_usec / 1000;
             try {
                 auto poll_res = sockets_.poll_sockets();
                 response.first = poll_res.first;
@@ -220,7 +241,6 @@ public:
 
             if (response.first) {
                 process_message(response);
-
             } // end of processing message
 
 
@@ -233,6 +253,14 @@ public:
                 check_game_over();
             }
 
+//            gettimeofday(&tp, NULL);
+//            int64_t timestamp_after = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+//            if (timestamp_after - timestamp_before < 20) {
+//                struct timespec time;
+//                time.tv_sec = 0;
+//                time.tv_nsec = (timestamp_after - timestamp_before) * 1000000;
+//                nanosleep(&time, nullptr);
+//            }
             // todo check if 20 ms passed since measuring time
 
         }
@@ -249,6 +277,10 @@ private:
         auto player_name = message.get_player_name_();
         auto direction = message.get_turn_direction();
         auto expected_event_no = message.get_next_expected_event_no_();
+
+        if (direction < -1 || direction > 1) {
+            return;
+        }
 
         auto player_node = players_.find(player_address);
         if (player_node == players_.end()) {
@@ -273,6 +305,9 @@ private:
             if (session_id < player_node->second->get_session_id()) {
                 return;
             }
+            if (timestamp - player_node->second->get_last_active() > TIMEOUT_LIMIT) {
+                player_node->second->set_playing_status(false);
+            }
 
             if (player_name.empty()) {
                 players_.erase(player_address);
@@ -282,15 +317,16 @@ private:
             } else if (session_id > player_node->second->get_session_id()) {
                 player_node->second->set_playing_status(false);
                 // todo resend everything?
-            } else if (player_node->second->is_connected() &&
+            } else if (player_node->second->is_playing() &&
                        player_node->second->get_player_name() == player_name) { //todo what if different names
                 player_node->second->set_last_active(timestamp);
                 player_node->second->set_last_direction(direction);
                 player_node->second->set_expected_event_no(expected_event_no);
                 send_message({player_address, player_node->second});
-
                 // todo process message
-            } else {
+            } else if (player_node->second->get_player_name() == player_name) {
+                send_message({player_address, player_node->second});
+            }else {
                 return;
             }
         }
@@ -302,24 +338,64 @@ private:
     }
 
     void check_game_over() {
-        int32_t players_active = 0;
+        int32_t players_alive = 0;
         for (auto &el : players_) {
-            if (el.second->is_playing()) {
-                ++players_active;
+            if (el.second->is_alive()) {
+                ++players_alive;
             }
         }
 
-        if (players_active <= 1) {
+        //todo
+//        throw std::runtime_error("koniec gry");
+
+        if (players_alive <= 1) {
+            is_game_active_ = false;
             GameOver ng(event_no_);
-            event_no_++;
+            event_no_ = 0;
 
             auto go_ptr = std::make_shared<GameOver>(ng);
             events_.push_back(go_ptr);
+
+            for (auto &el : players_) {
+                el.second->set_playing_status(false);
+                el.second->kill();
+                el.second->set_last_direction(0);
+            }
         }
     }
 
     void tick_one_round() {
+        for (auto &el : players_sorted_) {
+            auto player = el.second;
 
+            if (player->is_alive()) {
+                auto head = player->get_head();
+                auto head_pos_before = head->get_position();
+                head->move_forward(player->get_last_direction());
+                auto head_pos_after = head->get_position();
+//                if (head_pos_after == head_pos_after) {
+//                    continue;
+//                }
+                if (board_.is_valid(head_pos_after)) {
+                    board_.take_position(head_pos_after);
+                    Pixel new_pixel(event_no_,
+                                    el.second->get_player_number(),
+                                    (uint32_t) head_pos_after.first,
+                                    (uint32_t) head_pos_after.second);
+                    ++event_no_;
+                    auto px_ptr = std::make_shared<Pixel>(new_pixel);
+                    events_.push_back(px_ptr);
+                } else if (head_pos_before != head_pos_after) {
+                    el.second->kill();
+                    std::cout << "player=" << el.second->get_player_number() << " x=" << head_pos_after.first
+                              << " y=" << head_pos_after.second << std::endl;
+                    PlayerEliminated pe(event_no_, el.second->get_player_number());
+                    ++event_no_;
+                    auto pe_ptr = std::make_shared<PlayerEliminated>(pe);
+                    events_.push_back(pe_ptr);
+                }
+            }
+        }
     }
 
     int64_t rand() {
@@ -360,8 +436,6 @@ private:
             game_id_ = (uint32_t) rand();
 
             start_game(ready_players);
-//            send_start_messages();
-
         }
     }
 
@@ -375,23 +449,6 @@ private:
 
         if (!events_to_send.empty()) {
             sockets_.add_message_to_queue(player.first, message);
-        }
-    }
-
-    void send_start_messages() {
-        for (auto &el : players_) {
-            if (el.second->is_connected()) {
-                uint32_t expected_event_no = el.second->get_expected_event_no();
-
-                std::vector<std::shared_ptr<Event>> events_to_send(events_.begin() + expected_event_no,
-                                                                   events_.end());
-
-                ServerMessage message(game_id_, events_to_send);
-
-                if (!events_to_send.empty()) {
-                    sockets_.add_message_to_queue(el.first, message);
-                }
-            }
         }
     }
 
@@ -415,22 +472,23 @@ private:
         uint8_t player_number = 0;
         for (auto &el : players_to_sort) {
             el.first->set_player_number(player_number);
+            el.first->set_playing_status(true);
+            el.first->set_alive();
             players_sorted_.push_back({el.second, el.first});
             ++player_number;
         }
 
         for (auto &el : players_sorted_) {
-            el.second->set_playing_status(true);
 
-            float_t head_x = (float_t) (rand() % width_ + 0.5); //todo po co te 0.5 skoro zaokraglanie w dol?
-            float_t head_y = (float_t) (rand() % height_ + 0.5);
-            float_t direction = rand() % 360;
+            double head_x = rand() % width_ + 0.5; //todo po co te 0.5 skoro zaokraglanie w dol?
+            double head_y = rand() % height_ + 0.5;
+            double direction = rand() % 360;
 
-            Head player_head(head_x, head_y, direction);
-            el.second->set_head(player_head);
+            Head player_head(head_x, head_y, direction, turn_speed_);
+            el.second->set_head(std::make_shared<Head>(player_head));
 
-            auto head_pos = el.second->get_head().get_position();
-            if (board_.is_empty(head_pos)) {
+            auto head_pos = el.second->get_head()->get_position();
+            if (board_.is_valid(head_pos)) {
                 board_.take_position(head_pos);
                 Pixel new_pixel(event_no_, el.second->get_player_number(), (uint32_t) head_pos.first,
                                 (uint32_t) head_pos.second);
@@ -438,13 +496,15 @@ private:
                 auto px_ptr = std::make_shared<Pixel>(new_pixel);
                 events_.push_back(px_ptr);
             } else {
+                el.second->kill();
+                std::cout << "player=" << el.second->get_player_number() << " x=" << head_pos.first
+                          << " y=" << head_pos.second << std::endl;
                 PlayerEliminated pe(event_no_, el.second->get_player_number());
                 ++event_no_;
                 auto pe_ptr = std::make_shared<PlayerEliminated>(pe);
                 events_.push_back(pe_ptr);
             }
         }
-
     }
 
     int64_t width_;

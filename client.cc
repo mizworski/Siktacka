@@ -29,8 +29,11 @@ int main(int argc, char **argv) {
 //    client.send_message_to_server(-1, 256);
     client.send_message_to_server(1, 0);
     sleep(2);
-    client.send_message_to_server(1, 0);
-    client.receive_message_from_server();
+    for (uint32_t i = 0; i < 10; ++i) {
+        sleep(1);
+        client.send_message_to_server(0, 0);
+        client.receive_message_from_server();
+    }
 //    client.receive_message_from_server();
 
 

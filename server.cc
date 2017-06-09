@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
 
     server.start();
 
-//    std::cout << random_seed << ":" << turn_speed << game_speed << port << height << width;
+//    std::cout << random_seed << ":" << turn_speed_ << game_speed_ << port << height << width;
 
     return 42;
 }
@@ -43,8 +43,8 @@ void parse_arguments(int argc, char *const *argv, int64_t &width, int64_t &heigh
                 {"width",       required_argument, 0, 0},
                 {"height",      required_argument, 0, 0},
                 {"port",        required_argument, 0, 0},
-                {"game_speed",  required_argument, 0, 0},
-                {"turn_speed",  required_argument, 0, 0},
+                {"game_speed_",  required_argument, 0, 0},
+                {"turn_speed_",  required_argument, 0, 0},
                 {"random_seed", required_argument, 0, 0},
                 {0, 0,                             0, 0}
         };
