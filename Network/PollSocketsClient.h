@@ -13,7 +13,7 @@
 #include "../Messages/ServerMessage.h"
 
 const uint16_t MAX_UDP_PACKET_SIZE = 512;
-const uint16_t TIMEOUT_LIMIT = 20;
+const uint16_t TIMEOUT_LIMIT = 100;
 
 class PollSocketsClient {
 public:

@@ -39,7 +39,7 @@ public:
                 if (message_from_gui == "LEFT_KEY_DOWN\n") {
                     left_arrow_down_ = 1;
                 } else if (message_from_gui == "LEFT_KEY_UP\n") {
-//                    left_arrow_down_ = 0;
+                    left_arrow_down_ = 0;
                 } else if (message_from_gui == "RIGHT_KEY_DOWN\n") {
                     right_arrow_down_ = 1;
                 } else if (message_from_gui == "RIGHT_KEY_UP\n") {
@@ -52,13 +52,15 @@ public:
             int64_t current_time = (int64_t) (tp.tv_sec * 1000 + tp.tv_usec / 1000);
             if (current_time - last_send_ > TIMEOUT_LIMIT) {
                 last_send_ = current_time;
-                send_message_to_server(right_arrow_down_ - left_arrow_down_, next_expected_event_no_);
+                last_dir_ = right_arrow_down_ - left_arrow_down_;
+//                std::cout << "dir=" << +last_dir_<<std::endl;
+                send_message_to_server(last_dir_, next_expected_event_no_);
             }
 
             if (response.first) {
-//                std::cout << "neen=" << next_expected_event_no_ << std::endl;
+                std::cout << "my next expected no=" << next_expected_event_no_ << std::endl;
                 uint32_t received_game_id = datagram_from_server.get_game_id();
-
+//                last_dir_ = right_arrow_down_ - left_arrow_down_;//todo
                 if (!is_game_active_ || received_game_id == game_id_) {
                     auto events = datagram_from_server.get_events();
                     for (auto &event : events) {
@@ -67,7 +69,7 @@ public:
                         if (!is_game_active_ && type == 0) {
                             std::shared_ptr<NewGame> ng_ptr = std::dynamic_pointer_cast<NewGame>(event);
                             if (ng_ptr) {
-//                                std::cout << "ng_en=" << ng_ptr->get_event_no()<< std::endl;
+                                std::cout << "ng_eventno=" << ng_ptr->get_event_no()<< std::endl;
                                 if (ng_ptr->get_event_no() != 0) {
                                     break;
                                 }
@@ -77,6 +79,7 @@ public:
                                 maxx_ = ng_ptr->get_maxy();
                                 maxy_ = ng_ptr->get_maxy();
                                 player_names_ = ng_ptr->get_players();
+//                                last_dir_ = 0;//todo
 
                                 for (auto &player : player_names_) {
                                     std::cout << player << std::endl;
@@ -89,7 +92,7 @@ public:
                             if (type == 1) { /// can't use switch due to initialization of ptrs
                                 std::shared_ptr<Pixel> pixel = std::dynamic_pointer_cast<Pixel>(event);
                                 if (pixel) {
-//                                    std::cout << "px_en=" << pixel->get_event_no()<< std::endl;
+                                    std::cout << "px_eventno=" << pixel->get_event_no()<< std::endl;
 
                                     char player_id = pixel->get_player_number();
                                     if (player_id < 0 || player_id >= player_names_.size() ||
@@ -208,6 +211,7 @@ private:
     uint32_t game_id_;
     int8_t left_arrow_down_;
     int8_t right_arrow_down_;
+    int8_t last_dir_;
     std::vector<std::string> player_names_;
 
     uint32_t maxx_;

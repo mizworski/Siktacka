@@ -256,15 +256,6 @@ public:
                 check_game_over();
             }
 
-            gettimeofday(&tp, NULL);
-            int64_t timestamp_after = (int64_t) (tp.tv_sec * 1000 + tp.tv_usec / 1000);
-            if (1000 / game_speed_ - (timestamp_after - current_time) > 0) {
-                struct timespec time;
-                time.tv_sec = 0;
-                time.tv_nsec = (1000 / game_speed_ - (timestamp_after - current_time)) * 1000000;
-                nanosleep(&time, nullptr);
-            }
-
         }
 #pragma clang diagnostic pop
     }
@@ -302,6 +293,10 @@ private:
                 Observer new_obs((int64_t) session_id, player_address, timestamp);
                 new_obs.set_expected_event_no(0); //todo or 0?
                 observers_.insert({player_address, new_obs});
+//                send_message({player_address, player_ptr});
+            } else {
+
+//                send_message({player_address, player_ptr});
             }
         } else {
             if (session_id < player_node->second->get_session_id()) {
