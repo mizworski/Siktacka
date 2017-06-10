@@ -293,19 +293,23 @@ private:
             if (!player_name.empty()) {
                 Player new_player(player_name, (int64_t) session_id, player_address, timestamp);
                 new_player.set_last_direction(direction);
-                new_player.set_expected_event_no(0); //todo or 0?
+                new_player.set_expected_event_no(0);
                 std::shared_ptr<Player> player_ptr = std::make_shared<Player>(new_player);
                 players_.insert({player_address, player_ptr});
-
                 send_message({player_address, player_ptr});
             } else if (observers_.find(player_address) == observers_.end()) {
                 Observer new_obs((int64_t) session_id, player_address, timestamp);
-                new_obs.set_expected_event_no(0); //todo or 0?
+                new_obs.set_expected_event_no(0);
+                std::shared_ptr<Observer> obs_ptr = std::make_shared<Observer>(new_obs);
                 observers_.insert({player_address, new_obs});
-//                send_message({player_address, player_ptr});
-            } else {
 
-//                send_message({player_address, player_ptr});
+                send_message({player_address, obs_ptr});
+            } else {
+                auto obs = observers_.find(player_address)->second;
+                obs.set_expected_event_no(expected_event_no);
+                std::shared_ptr<Observer> obs_ptr = std::make_shared<Observer>(obs);
+
+                send_message({player_address, obs_ptr});
             }
         } else {
             if (session_id < player_node->second->get_session_id()) {
@@ -322,17 +326,18 @@ private:
                 observers_.insert({player_address, new_obs});
             } else if (session_id > player_node->second->get_session_id()) {
                 player_node->second->set_playing_status(false);
-                // todo resend everything?
             } else if (player_node->second->is_playing() &&
-                       player_node->second->get_player_name() == player_name) { //todo what if different names
+                       player_node->second->get_player_name() == player_name) {
                 player_node->second->set_last_active(timestamp);
                 player_node->second->set_last_direction(direction);
                 player_node->second->set_expected_event_no(expected_event_no);
+
                 send_message({player_address, player_node->second});
             } else if (player_node->second->get_player_name() == player_name) {
                 player_node->second->set_last_active(timestamp);
                 player_node->second->set_last_direction(direction);
                 player_node->second->set_expected_event_no(expected_event_no);
+
                 send_message({player_address, player_node->second});
             } else {
                 return;
@@ -345,12 +350,13 @@ private:
             if (direction != 0) {
                 player->second->set_pressed_key(true);
             }
+            if (!is_game_active_) {
+                player_node = players_.find(player_address);
+                player_node->second->set_connected_status(true);
+            }
         }
 
-        if (!is_game_active_) {
-            player_node = players_.find(player_address);
-            player_node->second->set_connected_status(true);
-        }
+
     }
 
     void check_game_over() {
@@ -450,8 +456,9 @@ private:
         }
     }
 
-    void send_message(std::pair<NetworkAddress, std::shared_ptr<Player>> player) {
+    void send_message(std::pair<NetworkAddress, std::shared_ptr<Client>> player) {
         uint32_t expected_event_no = player.second->get_expected_event_no();
+
 
         if (expected_event_no > events_.size()) {
             return;
