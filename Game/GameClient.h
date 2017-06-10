@@ -30,8 +30,6 @@ private:
     std::string player_name_;
     std::string game_server_host_;
     std::string ui_server_host_;
-    uint64_t game_server_port_;
-    uint64_t ui_server_port_;
 
     uint64_t session_id_;
     PollSocketsClient sockets_;

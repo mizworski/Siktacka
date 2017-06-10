@@ -1,9 +1,9 @@
 
 #include "PollSocketsServer.h"
 
-PollSocketsServer::PollSocketsServer(uint16_t sockets, uint16_t port, int64_t rounds_per_sec) : sockets_(sockets),
-                                                                                                rounds_per_sec_(
-                                                                                                        rounds_per_sec) {
+PollSocketsServer::PollSocketsServer(uint16_t sockets,
+                                     uint16_t port,
+                                     int64_t rounds_per_sec) : rounds_per_sec_(rounds_per_sec), sockets_(sockets) {
     sockets_fds_ = (pollfd *) calloc(sockets, sizeof(struct pollfd));
 
     for (uint16_t i = 0; i < sockets; ++i) {

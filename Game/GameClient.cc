@@ -8,17 +8,15 @@ GameClient::GameClient(std::string &player_name,
                        uint64_t ui_server_port) : player_name_(player_name),
                                                   game_server_host_(game_server_host),
                                                   ui_server_host_(ui_server_host),
-                                                  game_server_port_(game_server_port),
-                                                  ui_server_port_(ui_server_port),
                                                   sockets_(game_server_host,
                                                            (uint16_t) game_server_port,
                                                            ui_server_host,
                                                            (uint16_t) ui_server_port),
                                                   is_game_active_(false),
-                                                  last_send_(0),
                                                   left_arrow_down_(0),
                                                   right_arrow_down_(0),
-                                                  last_dir_(0) {
+                                                  last_dir_(0),
+                                                  last_send_(0) {
     get_new_session_id();
 }
 
@@ -92,7 +90,6 @@ void GameClient::start() {
                         if (pixel) {
                             char player_id = pixel->get_player_number();
                             if (player_id < 0 || player_id >= player_names_.size() ||
-                                pixel->get_x() < 0 || pixel->get_y() < 0 ||
                                 pixel->get_x() > maxx_ || pixel->get_y() > maxy_ ||
                                 pixel->get_event_no() != next_expected_event_no_) {
                                 break;

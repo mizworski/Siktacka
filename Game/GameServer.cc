@@ -147,12 +147,12 @@ bool GameBoard::is_valid(std::pair<int64_t, int64_t> pos) {
 }
 
 GameServer::GameServer(int64_t width, int64_t height, int64_t port, int64_t game_speed, int64_t turn_speed,
-                       int64_t random_seed) : width_(width), height_(height), port_(port), game_speed_(game_speed),
+                       int64_t random_seed) : width_(width), height_(height), game_speed_(game_speed),
                                               turn_speed_(turn_speed), random_state_(random_seed),
                                               board_(width, height),
                                               sockets_(1, (uint16_t) port, game_speed),
-                                              is_game_active_(false),
-                                              last_tick_time_(0) {}
+                                              last_tick_time_(0),
+                                              is_game_active_(false) {}
 
 void GameServer::start() {
 #pragma clang diagnostic push

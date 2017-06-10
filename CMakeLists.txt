@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(sik)
 
 set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-#set(CMAKE_CXX_FLAGS         "-Werror -Wall -std=c++14")
+set(CMAKE_CXX_FLAGS "-Werror -Wall -std=c++14")
 set(CMAKE_CXX_STANDARD 14)
 set(SERVER_SRCS
         server.cc
@@ -22,6 +22,3 @@ set(SOURCE_FILES
 
 add_executable(client ${SOURCE_FILES} ${CLIENT_SRCS})
 add_executable(server ${SOURCE_FILES} ${SERVER_SRCS})
-add_executable(server_message_test ${SOURCE_FILES} Tests/ServerEventsTests.cc)
-add_executable(client_message_test ${SOURCE_FILES} Tests/ClientMessageTest.cc)
-add_executable(tcp_message_test ${SOURCE_FILES} Tests/TcpMessageTest.cc)

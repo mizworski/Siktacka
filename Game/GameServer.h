@@ -168,7 +168,6 @@ private:
 
     int64_t width_;
     int64_t height_;
-    int64_t port_;
     int64_t game_speed_;
     int64_t turn_speed_;
     int64_t random_state_;
