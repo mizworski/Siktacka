@@ -34,15 +34,22 @@ public:
         std::string message_from_gui;
 
         while (true) {
-//            sleep(1);
-//            send_message_to_server(1, 0);
+            sleep(1);
+            send_message_to_server(1, 0);
             auto response = sockets_.poll_sockets(datagram_from_server, message_from_gui);
             if (response.second) {
-                //todo process gui
+                if (message_from_gui == "LEFT_KEY_DOWN") {
+
+                } else if (message_from_gui == "LEFT_KEY_UP"){
+
+                } else if (message_from_gui == "RIGHT_KEY_DOWN") {
+
+                } else if (message_from_gui == "RIGHT_KEY_UP") {
+
+                }
             }
 
             if (response.first) {
-
                 std::cout << "Odebralem jedna wiadomosc" <<std::endl;
                 //todo process server
                 uint32_t received_game_id = datagram_from_server.get_game_id();
@@ -64,21 +71,38 @@ public:
                                 for (auto &player : player_names_) {
                                     std::cout << player << std::endl;
                                 }
+
+                                auto message = ng_ptr->get_string();
+                                sockets_.send_messages_gui(message);
                             }
-
                         } else if (is_game_active_) {
-                            switch (type) {
-                                case 1:
+                            if (type == 1) { /// can't use switch due to initialization of ptrs
+                                std::shared_ptr<Pixel> pixel = std::dynamic_pointer_cast<Pixel>(event);
+                                if (pixel) {
+                                    std::cout << "player=" << +pixel->get_player_number() << " x="
+                                              << pixel->get_x() << " y=" << pixel->get_y() << std::endl;;
 
-                                    break;
-                                case 2:
-                                    break;
-                                case 3:
-                                    is_game_active_ = false;
-                                    player_names_.clear();
-                                    break;
-                                default:
-                                    break;
+                                    char player_id = pixel->get_player_number();
+                                    std::string player_name = player_names_[player_id];
+                                    auto message = pixel->get_string();
+                                    message += player_name;
+                                    message += 10;
+                                    sockets_.send_messages_gui(message);
+                                }
+                            } else if (type == 2) {
+                                std::shared_ptr<PlayerEliminated> pe = std::dynamic_pointer_cast<PlayerEliminated>(event);
+                                if (pe) {
+                                    std::cout << "player_eliminated=" << +pe->get_player_number() << std::endl;
+                                    char player_id = pe->get_player_number();
+                                    std::string player_name = player_names_[player_id];
+                                    auto message = pe->get_string();
+                                    message += player_name;
+                                    message += 10;
+                                    sockets_.send_messages_gui(message);
+                                }
+                            } else if (type == 3) {
+                                is_game_active_ = false;
+                                player_names_.clear();
                             }
                         }
                     }
