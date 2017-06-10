@@ -32,6 +32,9 @@ public:
 
         session_id_ = bton(serialized_message.substr(0, 8));
         turn_direction_ = (char) bton(serialized_message.substr(8, 1));
+        if (turn_direction_ < -1 || turn_direction_ > 1) {
+            throw std::runtime_error("Wrong direction given.");
+        }
         next_expected_event_no_ = (uint32_t) bton(serialized_message.substr(9, 4));
         if (serialized_message.length() == 13) {
             player_name_ = "";
@@ -60,7 +63,7 @@ public:
         std::ostringstream os;
         std::string message;
 
-        std::vector<unsigned char> session_id_bytes = ntob(htobe64(session_id_), 8);
+        std::vector<unsigned char> session_id_bytes = ntob((int64_t) htobe64(session_id_), 8);
         for (auto byte : session_id_bytes) {
             os << byte;
         }

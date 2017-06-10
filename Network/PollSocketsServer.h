@@ -2,31 +2,31 @@
 #ifndef SIK_POLLSOCKETS_H
 #define SIK_POLLSOCKETS_H
 
-
 #include <cstdint>
 #include <poll.h>
 #include <vector>
 #include <queue>
 #include "UdpSocket.h"
+#include "TcpSocket.h"
 #include "../Messages/ClientMessage.h"
 #include "../Messages/ServerMessage.h"
 
 const uint16_t MAX_UDP_PACKET_SIZE = 512;
 
-class PollSockets {
+class PollSocketsServer {
 public:
-    PollSockets(uint16_t sockets, uint16_t port, int64_t rounds_per_sec) : sockets_(sockets),
-                                                                           rounds_per_sec_(rounds_per_sec) {
+    PollSocketsServer(uint16_t sockets, uint16_t port, int64_t rounds_per_sec) : sockets_(sockets),
+                                                                                 rounds_per_sec_(rounds_per_sec) {
         sockets_fds_ = (pollfd *) calloc(sockets, sizeof(struct pollfd));
 
         for (uint16_t i = 0; i < sockets; ++i) {
-            sockets_fds_[i].events = POLLIN | POLLOUT; // todo leave pollout or not?
+            sockets_fds_[i].events = POLLIN; // todo leave pollout or not?
             sockets_fds_[i].revents = 0;
         }
 
         for (uint16_t i = 0; i < sockets; ++i) {
             sockets_[i].open();
-            sockets_fds_->fd = sockets_[i].get_descriptor();
+            sockets_fds_[i].fd = sockets_[i].get_descriptor();
         }
 
         server.sin_family = AF_INET;
@@ -37,11 +37,19 @@ public:
         }
     }
 
-    ~PollSockets() {
+    ~PollSocketsServer() {
         free(sockets_fds_);
     }
 
     std::pair<bool, ClientMessage> poll_sockets() {
+        for (uint16_t i = 0; i < 1; ++i) {
+            if (!messages_to_send.empty()) {
+                sockets_fds_[i].events = POLLIN | POLLOUT; // todo leave pollout or not?
+            } else {
+                sockets_fds_[i].events = POLLIN; // todo leave pollout or not?
+            }
+            sockets_fds_[i].revents = 0;
+        }
         int32_t ret = poll(sockets_fds_, 1, (int) (1000 / rounds_per_sec_));
         std::pair<bool, ClientMessage> res;
         res.first = false;
@@ -114,6 +122,7 @@ public:
         messages.push_back(message);
         add_message_to_queue(addresses, messages);
     }
+
     void add_message_to_queue(NetworkAddress const &address, ServerMessage &message) {
         std::vector<NetworkAddress> addresses;
         addresses.push_back(address);

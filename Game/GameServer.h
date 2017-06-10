@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include "../Messages/ServerMessage.h"
 #include "../Network/UdpSocket.h"
-#include "../Network/PollSockets.h"
+#include "../Network/PollSocketsServer.h"
 #include <boost/functional/hash.hpp>
 #include <unordered_map>
 #include <boost/functional/hash.hpp>
@@ -290,14 +290,14 @@ private:
             if (!player_name.empty()) {
                 Player new_player(player_name, (int64_t) session_id, player_address, timestamp);
                 new_player.set_last_direction(direction);
-                new_player.set_expected_event_no(expected_event_no);
+                new_player.set_expected_event_no(expected_event_no); //todo or 0?
                 std::shared_ptr<Player> player_ptr = std::make_shared<Player>(new_player);
                 players_.insert({player_address, player_ptr});
 
                 send_message({player_address, player_ptr});
             } else if (observers_.find(player_address) == observers_.end()) {
                 Observer new_obs((int64_t) session_id, player_address, timestamp);
-                new_obs.set_expected_event_no(expected_event_no);
+                new_obs.set_expected_event_no(expected_event_no); //todo or 0?
                 observers_.insert({player_address, new_obs});
             }
         } else {
@@ -322,7 +322,6 @@ private:
                 player_node->second->set_last_direction(direction);
                 player_node->second->set_expected_event_no(expected_event_no);
                 send_message({player_address, player_node->second});
-                // todo process message
             } else if (player_node->second->get_player_name() == player_name) {
                 send_message({player_address, player_node->second});
             } else {
@@ -518,7 +517,7 @@ private:
     std::map<NetworkAddress, std::shared_ptr<Player>> players_;
     std::vector<std::pair<NetworkAddress, std::shared_ptr<Player>>> players_sorted_;
     std::map<NetworkAddress, Observer> observers_;
-    PollSockets sockets_;
+    PollSocketsServer sockets_;
 
     bool is_game_active_;
     uint32_t event_no_;

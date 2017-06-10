@@ -358,6 +358,8 @@ public:
 
 class ServerDatagram {
 public:
+    ServerDatagram() {}
+
     ServerDatagram(uint32_t game_id, std::vector<std::shared_ptr<Event>> &events) : game_id_(game_id),
                                                                                     events_(events) {}
 
@@ -416,18 +418,8 @@ public:
         std::string message(os.str());
         for (auto &event : events_) {
             std::string serialized_event(event->get_message());
-//            for (unsigned char byte : serialized_event) {
-//                std::cout << std::hex << +byte << "#";
-//            }
-//            std::cout << std::endl;
             message += serialized_event;
         }
-
-//        std::cout << "whole msg:" << std::endl;
-//        for (unsigned char byte : message) {
-//            std::cout << std::hex << +byte << "#";
-//        }
-//        std::cout << std::endl;
         return message;
     }
 

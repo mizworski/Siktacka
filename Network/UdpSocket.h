@@ -1,6 +1,6 @@
 
-#ifndef SIK_TCPSOCKET_H
-#define SIK_TCPSOCKET_H
+#ifndef SIK_UDPSOCKET_H
+#define SIK_UDPSOCKET_H
 
 
 #include <netdb.h>
@@ -13,7 +13,7 @@
 #include <iostream>
 #include "NetworkAddress.h"
 
-const int16_t MAX_DATAGRAM_SIZE = 512;
+const uint32_t MAX_DATAGRAM_LENGTH = 512;
 
 class UdpSocket {
 public:
@@ -47,9 +47,9 @@ public:
 
     std::pair<std::string, struct sockaddr_in> receive() {
         struct sockaddr_in server_address;
-        char raw_msg[MAX_DATAGRAM_SIZE];
+        char raw_msg[MAX_DATAGRAM_LENGTH];
 
-        size_t rcv_msg_len = MAX_DATAGRAM_SIZE;
+        size_t rcv_msg_len = MAX_DATAGRAM_LENGTH;
         socklen_t rcv_address_len = (socklen_t) sizeof(server_address);
         ssize_t rcv_len = recvfrom(socket_, &raw_msg, rcv_msg_len, 0,
                                    (struct sockaddr *) &server_address, &rcv_address_len);
@@ -72,4 +72,4 @@ private:
 };
 
 
-#endif //SIK_TCPSOCKET_H
+#endif //SIK_UDPSOCKET_H

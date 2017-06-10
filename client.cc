@@ -26,7 +26,6 @@ int main(int argc, char **argv) {
 
     GameClient client(player_name, game_server_host, game_server_port, ui_server_host, ui_server_port);
 
-//    client.send_message_to_server(-1, 256);
     client.send_message_to_server(1, 0);
     sleep(2);
     for (uint32_t i = 0; i < 10; ++i) {
@@ -34,7 +33,6 @@ int main(int argc, char **argv) {
         client.send_message_to_server(0, 0);
         client.receive_message_from_server();
     }
-//    client.receive_message_from_server();
 
 
     return 42;

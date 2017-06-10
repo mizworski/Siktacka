@@ -2,22 +2,25 @@
 #ifndef SIK_TCPSOCKET_H
 #define SIK_TCPSOCKET_H
 
-
 #include <netdb.h>
 #include <cstdint>
+#include <string>
+#include <cstring>
+#include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <stdexcept>
 #include <iostream>
 #include "NetworkAddress.h"
 
-const uint32_t MAX_DATAGRAM_SIZE = 512;
+const uint32_t BUFFER_SIZE = 512;
 
 class TcpSocket {
 public:
     TcpSocket() {}
 
-void open(std::string hostname, std::string port) {
+    void open(std::string hostname, std::string port) {
+        struct addrinfo addr_hints;
+        struct addrinfo *addr_result;
         memset(&addr_hints, 0, sizeof(struct addrinfo));
         addr_hints.ai_family = AF_INET; // IPv4
         addr_hints.ai_socktype = SOCK_STREAM;
@@ -57,7 +60,7 @@ void open(std::string hostname, std::string port) {
 
     std::string receive() {
         struct sockaddr_in server_address;
-        char raw_msg[MAX_DATAGRAM_SIZE];
+        char raw_msg[BUFFER_SIZE];
 
         memset(raw_msg, 0, sizeof(raw_msg));
         ssize_t rcv_len = read(socket_, raw_msg, sizeof(raw_msg) - 1);
@@ -74,11 +77,7 @@ void open(std::string hostname, std::string port) {
     }
 
 private:
-    struct addrinfo addr_hints;
-    struct addrinfo *addr_result;
-
     int32_t socket_;
 };
-
 
 #endif //SIK_TCPSOCKET_H

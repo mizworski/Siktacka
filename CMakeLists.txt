@@ -10,14 +10,14 @@ set(SERVER_SRCS
 set(CLIENT_SRCS
         client.cc
         Game/GameClient.cc Game/GameClient.h
-        Network/TcpSocket.cc Network/TcpSocket.h)
+        Network/TcpSocket.cc Network/TcpSocket.h Network/PollSocketsClient.cc Network/PollSocketsClient.h)
 set(SOURCE_FILES
         Messages/ServerMessage.cc Messages/ServerMessage.h
         Messages/ClientMessage.cc Messages/ClientMessage.h
         Network/HelperFunctions.cc Network/HelperFunctions.h
         Network/UdpSocket.cc Network/UdpSocket.h
         Network/NetworkAddress.cc Network/NetworkAddress.h
-        Network/PollSockets.cc Network/PollSockets.h
+        Network/PollSocketsServer.cc Network/PollSocketsServer.h
         )
 
 add_executable(client ${SOURCE_FILES} ${CLIENT_SRCS})
