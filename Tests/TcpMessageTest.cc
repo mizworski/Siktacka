@@ -7,7 +7,7 @@ void test1();
 void test2();
 
 int main() {
-//    test1();
+    test1();
 
     test2();
 
@@ -34,8 +34,6 @@ int main() {
 
 void test2() {
     std::__cxx11::string hostname("localhost");
-//    std::string port_server("12345");
-//    std::string port_gui("12346");
     uint16_t port_server = 12345;
     uint16_t port_gui = 12346;
     PollSocketsClient sockets(hostname, port_server, hostname, port_gui);

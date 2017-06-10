@@ -13,46 +13,18 @@
 class NetworkAddress {
 public:
     NetworkAddress() {}
-    NetworkAddress(std::string hostname, uint16_t port) {
-        init_addr_hints();
-        if (getaddrinfo(hostname.c_str(), NULL, &addr_hints_, &addr_result_) != 0) {
-            throw std::runtime_error("Failed to get address of server.");
-        }
 
-        socket_address_.sin_family = AF_INET;
-        socket_address_.sin_addr.s_addr = ((struct sockaddr_in *) (addr_result_->ai_addr))->sin_addr.s_addr;
-        socket_address_.sin_port = htons((uint16_t) port);
+    NetworkAddress(std::string hostname, uint16_t port);
 
-        freeaddrinfo(addr_result_);
-    }
+    NetworkAddress(struct sockaddr_in address);
 
-    NetworkAddress(struct sockaddr_in address) {
-        socket_address_ = address;
-    }
+    struct sockaddr_in get_socket_address() const;
 
-    struct sockaddr_in get_socket_address() const {
-        return socket_address_;
-    }
+    bool operator==(const NetworkAddress &other) const;
 
-    bool operator==(const NetworkAddress &other) const {
-        bool res = other.get_socket_address().sin_port == socket_address_.sin_port;
-        res = res && other.get_socket_address().sin_addr.s_addr == socket_address_.sin_addr.s_addr;
-        return res;
-    }
+    bool operator!=(const NetworkAddress &other) const;
 
-    bool operator!=(const NetworkAddress &other) const {
-        return !(*this == other);
-    }
-
-    bool operator<(const NetworkAddress &other) const {
-        if (socket_address_.sin_port < other.get_socket_address().sin_port) {
-            return true;
-        } else if(socket_address_.sin_port > other.get_socket_address().sin_port) {
-            return false;
-        } else {
-            return other.get_socket_address().sin_addr.s_addr < socket_address_.sin_addr.s_addr;
-        }
-    }
+    bool operator<(const NetworkAddress &other) const;
 private:
     void init_addr_hints() {
         memset(&addr_hints_, 0, sizeof(struct addrinfo));

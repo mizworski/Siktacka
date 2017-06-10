@@ -18,63 +18,15 @@ class TcpSocket {
 public:
     TcpSocket() {}
 
-    void open(std::string hostname, std::string port) {
-        struct addrinfo addr_hints;
-        struct addrinfo *addr_result;
-        memset(&addr_hints, 0, sizeof(struct addrinfo));
-        addr_hints.ai_family = AF_INET; // IPv4
-        addr_hints.ai_socktype = SOCK_STREAM;
-        addr_hints.ai_protocol = IPPROTO_TCP;
-        int32_t err = getaddrinfo(hostname.c_str(), port.c_str(), &addr_hints, &addr_result);
-        if (err != 0) {
-            std::string err_msg("Error in getaddrinfo ");
-            err_msg += gai_strerror(err);
-            throw std::runtime_error(err_msg);
-        }
+    void open(std::string hostname, std::string port);
 
-        socket_ = socket(addr_result->ai_family, addr_result->ai_socktype, addr_result->ai_protocol);
-        if (socket_ < 0) {
-            throw std::runtime_error("Error while opening socket");
-        }
+    void disconnect();
 
-        if (connect(socket_, addr_result->ai_addr, addr_result->ai_addrlen) < 0) {
-            throw std::runtime_error("Error while connecting to socket");
-        }
+    void send(std::string message);
 
-        freeaddrinfo(addr_result);
-    }
+    std::string receive();
 
-    void disconnect() {
-        if (close(socket_) == -1) {
-            throw std::runtime_error("Failed to close socket.");
-        }
-    }
-
-    void send(std::string message) {
-        size_t msg_len = message.size();
-
-        if (write(socket_, message.c_str(), msg_len) != msg_len) {
-            throw std::runtime_error("Error while sending message to socket.");
-        }
-    }
-
-    std::string receive() {
-        struct sockaddr_in server_address;
-        char raw_msg[BUFFER_SIZE];
-
-        memset(raw_msg, 0, sizeof(raw_msg));
-        ssize_t rcv_len = read(socket_, raw_msg, sizeof(raw_msg) - 1);
-        if (rcv_len < 0) {
-            throw std::runtime_error("Error while reading from socket.");
-        }
-
-        std::string res(raw_msg, (uint32_t) rcv_len);
-        return res;
-    }
-
-    int32_t get_descriptor() {
-        return socket_;
-    }
+    int32_t get_descriptor();
 
 private:
     int32_t socket_;

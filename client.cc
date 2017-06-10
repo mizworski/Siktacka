@@ -1,9 +1,6 @@
-#include <stdio.h>     /* for printf */
-#include <stdlib.h>    /* for exit */
-#include <getopt.h>
+#include <stdlib.h>
 #include <iostream>
 #include "Game/GameClient.h"
-#include "Messages/ServerMessage.h"
 
 void parse_arguments(int argc, char **argv, std::string &player_name, std::string &game_server_host,
                      uint64_t &game_server_port, std::string &ui_server_host, uint64_t &ui_server_port);
@@ -26,9 +23,6 @@ int main(int argc, char **argv) {
 
     GameClient client(player_name, game_server_host, game_server_port, ui_server_host, ui_server_port);
 
-    std::cout << game_server_host << ' ' << game_server_port << std::endl;
-    std::cout << ui_server_host << ' ' << ui_server_port << std::endl;
-    std::cout << "player_name=" << player_name << " is_empty=" << player_name.empty() << std::endl;
     client.start();
 
 
