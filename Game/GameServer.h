@@ -326,6 +326,8 @@ private:
                 player_node->second->set_expected_event_no(expected_event_no);
                 send_message({player_address, player_node->second});
             } else if (player_node->second->get_player_name() == player_name) {
+                player_node->second->set_last_active(timestamp);
+                player_node->second->set_last_direction(direction);
                 player_node->second->set_expected_event_no(expected_event_no);
                 send_message({player_address, player_node->second});
             } else {
@@ -416,6 +418,7 @@ private:
                 player->set_connected_status(false);
                 to_remove.push_back(el.first);
             } else if (player->is_connected() && player->get_last_direction() != 0) {
+
                 ++players_ready;
                 ready_players.push_back(player->get_player_name());
             } else { // connected player with direction == 0

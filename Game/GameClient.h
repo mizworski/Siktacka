@@ -34,25 +34,25 @@ public:
         std::string message_from_gui;
 
         while (true) {
+            auto response = sockets_.poll_sockets(datagram_from_server, message_from_gui);
+            if (response.second) {
+                if (message_from_gui == "LEFT_KEY_DOWN\n") {
+                    left_arrow_down_ = 1;
+                } else if (message_from_gui == "LEFT_KEY_UP\n") {
+//                    left_arrow_down_ = 0;
+                } else if (message_from_gui == "RIGHT_KEY_DOWN\n") {
+                    right_arrow_down_ = 1;
+                } else if (message_from_gui == "RIGHT_KEY_UP\n") {
+                    right_arrow_down_ = 0;
+                }
+            }
+
             struct timeval tp;
             gettimeofday(&tp, NULL);
             int64_t current_time = (int64_t) (tp.tv_sec * 1000 + tp.tv_usec / 1000);
             if (current_time - last_send_ > TIMEOUT_LIMIT) {
                 last_send_ = current_time;
-//                std::cout << "send_neen=" << next_expected_event_no_ << std::endl;
                 send_message_to_server(right_arrow_down_ - left_arrow_down_, next_expected_event_no_);
-            }
-            auto response = sockets_.poll_sockets(datagram_from_server, message_from_gui);
-            if (response.second) {
-                if (message_from_gui == "LEFT_KEY_DOWN") {
-                    left_arrow_down_ = 1;
-                } else if (message_from_gui == "LEFT_KEY_UP") {
-                    left_arrow_down_ = 0;
-                } else if (message_from_gui == "RIGHT_KEY_DOWN") {
-                    right_arrow_down_ = 1;
-                } else if (message_from_gui == "RIGHT_KEY_UP") {
-                    right_arrow_down_ = 0;
-                }
             }
 
             if (response.first) {
@@ -131,6 +131,7 @@ public:
                                     if (go->get_event_no() != next_expected_event_no_) {
                                         break;
                                     }
+                                    sleep(1);
                                     ++next_expected_event_no_;
                                     is_game_active_ = false;
                                     player_names_.clear();
