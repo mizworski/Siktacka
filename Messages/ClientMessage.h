@@ -51,14 +51,7 @@ public:
             player_name_ = os.str();
         }
     }
-
-    void print_msg() {
-        std::cout << "session_id=" << session_id_ << std::endl;
-        std::cout << "turn_direction=" << +turn_direction_ << std::endl;
-        std::cout << "next_exp_event_no=" << next_expected_event_no_ << std::endl;
-        std::cout << "playername=" << player_name_ << std::endl;
-    }
-
+    
     std::string serialize() {
         std::ostringstream os;
         std::string message;

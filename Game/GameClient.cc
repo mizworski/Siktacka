@@ -15,7 +15,10 @@ GameClient::GameClient(std::string &player_name,
                                                            (uint16_t) game_server_port,
                                                            ui_server_host,
                                                            (uint16_t) ui_server_port),
-                                                  is_game_active_(false) {
+                                                  is_game_active_(false),
+                                                  last_send_(0),
+                                                  left_arrow_down_(0), 
+                                                  right_arrow_down_(0) {
     get_new_session_id();
 }
 

@@ -81,6 +81,10 @@ public:
         return -1;
     }
 
+    uint32_t get_event_no() {
+        return event_no_;
+    }
+
 protected:
     uint32_t len_;
     uint32_t event_no_;

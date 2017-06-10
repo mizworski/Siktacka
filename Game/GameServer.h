@@ -219,7 +219,8 @@ public:
                                       turn_speed_(turn_speed), random_state_(random_seed),
                                       board_(width, height),
                                       sockets_(1, (uint16_t) port, game_speed),
-                                      is_game_active_(false) {}
+                                      is_game_active_(false),
+                                      last_tick_time_(0) {}
 
     void start() {
 #pragma clang diagnostic push
@@ -228,9 +229,10 @@ public:
             std::pair<bool, ClientMessage> response;
             response.first = false;
 
+
             struct timeval tp;
             gettimeofday(&tp, NULL);
-            int64_t timestamp_before = (int64_t) (tp.tv_sec * 1000 + tp.tv_usec / 1000);
+            int64_t current_time = (int64_t) (tp.tv_sec * 1000 + tp.tv_usec / 1000);
 
             try {
                 auto poll_res = sockets_.poll_sockets();
@@ -248,17 +250,18 @@ public:
                 check_if_start();
             }
 
-            if (is_game_active_) {
+            if (is_game_active_ && current_time - last_tick_time_ > 1000 / game_speed_) {
+                last_tick_time_ = current_time;
                 tick_one_round();
                 check_game_over();
             }
 
             gettimeofday(&tp, NULL);
             int64_t timestamp_after = (int64_t) (tp.tv_sec * 1000 + tp.tv_usec / 1000);
-            if (1000 / game_speed_ - (timestamp_after - timestamp_before) > 0) {
+            if (1000 / game_speed_ - (timestamp_after - current_time) > 0) {
                 struct timespec time;
                 time.tv_sec = 0;
-                time.tv_nsec = (1000 / game_speed_ - (timestamp_after - timestamp_before)) * 1000000;
+                time.tv_nsec = (1000 / game_speed_ - (timestamp_after - current_time)) * 1000000;
                 nanosleep(&time, nullptr);
             }
 
@@ -323,6 +326,7 @@ private:
                 player_node->second->set_expected_event_no(expected_event_no);
                 send_message({player_address, player_node->second});
             } else if (player_node->second->get_player_name() == player_name) {
+                player_node->second->set_expected_event_no(expected_event_no);
                 send_message({player_address, player_node->second});
             } else {
                 return;
@@ -379,7 +383,7 @@ private:
                     events_.push_back(px_ptr);
                 } else if (head_pos_before != head_pos_after) {
                     el.second->kill();
-                    std::cout << "player=" << el.second->get_player_number() << " x=" << head_pos_after.first
+                    std::cout << "player_killed=" << +el.second->get_player_number() << " x=" << head_pos_after.first
                               << " y=" << head_pos_after.second << std::endl;
                     PlayerEliminated pe(event_no_, el.second->get_player_number());
                     ++event_no_;
@@ -474,7 +478,7 @@ private:
 
         for (auto &el : players_sorted_) {
 
-            double head_x = rand() % width_ + 0.5; //todo po co te 0.5 skoro zaokraglanie w dol?
+            double head_x = rand() % width_ + 0.5;
             double head_y = rand() % height_ + 0.5;
             double direction = rand() % 360;
 
@@ -518,6 +522,7 @@ private:
     std::vector<std::pair<NetworkAddress, std::shared_ptr<Player>>> players_sorted_;
     std::map<NetworkAddress, Observer> observers_;
     PollSocketsServer sockets_;
+    int64_t last_tick_time_;
 
     bool is_game_active_;
     uint32_t event_no_;

@@ -29,29 +29,34 @@ public:
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
 
-    void start() {;
+    void start() {
         ServerDatagram datagram_from_server;
         std::string message_from_gui;
 
         while (true) {
-            sleep(1);
-            send_message_to_server(1, 0);
+            struct timeval tp;
+            gettimeofday(&tp, NULL);
+            int64_t current_time = (int64_t) (tp.tv_sec * 1000 + tp.tv_usec / 1000);
+            if (current_time - last_send_ > TIMEOUT_LIMIT) {
+                last_send_ = current_time;
+//                std::cout << "send_neen=" << next_expected_event_no_ << std::endl;
+                send_message_to_server(right_arrow_down_ - left_arrow_down_, next_expected_event_no_);
+            }
             auto response = sockets_.poll_sockets(datagram_from_server, message_from_gui);
             if (response.second) {
                 if (message_from_gui == "LEFT_KEY_DOWN") {
-
-                } else if (message_from_gui == "LEFT_KEY_UP"){
-
+                    left_arrow_down_ = 1;
+                } else if (message_from_gui == "LEFT_KEY_UP") {
+                    left_arrow_down_ = 0;
                 } else if (message_from_gui == "RIGHT_KEY_DOWN") {
-
+                    right_arrow_down_ = 1;
                 } else if (message_from_gui == "RIGHT_KEY_UP") {
-
+                    right_arrow_down_ = 0;
                 }
             }
 
             if (response.first) {
-                std::cout << "Odebralem jedna wiadomosc" <<std::endl;
-                //todo process server
+//                std::cout << "neen=" << next_expected_event_no_ << std::endl;
                 uint32_t received_game_id = datagram_from_server.get_game_id();
 
                 if (!is_game_active_ || received_game_id == game_id_) {
@@ -62,6 +67,11 @@ public:
                         if (!is_game_active_ && type == 0) {
                             std::shared_ptr<NewGame> ng_ptr = std::dynamic_pointer_cast<NewGame>(event);
                             if (ng_ptr) {
+//                                std::cout << "ng_en=" << ng_ptr->get_event_no()<< std::endl;
+                                if (ng_ptr->get_event_no() != 0) {
+                                    break;
+                                }
+                                next_expected_event_no_ = 1;
                                 game_id_ = received_game_id;
                                 is_game_active_ = true;
                                 maxx_ = ng_ptr->get_maxy();
@@ -79,10 +89,18 @@ public:
                             if (type == 1) { /// can't use switch due to initialization of ptrs
                                 std::shared_ptr<Pixel> pixel = std::dynamic_pointer_cast<Pixel>(event);
                                 if (pixel) {
-                                    std::cout << "player=" << +pixel->get_player_number() << " x="
-                                              << pixel->get_x() << " y=" << pixel->get_y() << std::endl;;
+//                                    std::cout << "px_en=" << pixel->get_event_no()<< std::endl;
 
                                     char player_id = pixel->get_player_number();
+                                    if (player_id < 0 || player_id >= player_names_.size() ||
+                                        pixel->get_x() < 0 || pixel->get_y() < 0 ||
+                                        pixel->get_x() > maxx_ || pixel->get_y() > maxy_ ||
+                                        pixel->get_event_no() != next_expected_event_no_) {
+                                        break;
+                                    }
+                                    std::cout << "player=" << +pixel->get_player_number() << " x="
+                                              << pixel->get_x() << " y=" << pixel->get_y() << std::endl;;
+                                    ++next_expected_event_no_;
                                     std::string player_name = player_names_[player_id];
                                     auto message = pixel->get_string();
                                     message += player_name;
@@ -90,10 +108,17 @@ public:
                                     sockets_.send_messages_gui(message);
                                 }
                             } else if (type == 2) {
-                                std::shared_ptr<PlayerEliminated> pe = std::dynamic_pointer_cast<PlayerEliminated>(event);
+                                std::shared_ptr<PlayerEliminated> pe = std::dynamic_pointer_cast<PlayerEliminated>(
+                                        event);
                                 if (pe) {
+
                                     std::cout << "player_eliminated=" << +pe->get_player_number() << std::endl;
                                     char player_id = pe->get_player_number();
+                                    if (player_id < 0 || player_id >= player_names_.size() ||
+                                        pe->get_event_no() != next_expected_event_no_) {
+                                        break;
+                                    }
+                                    ++next_expected_event_no_;
                                     std::string player_name = player_names_[player_id];
                                     auto message = pe->get_string();
                                     message += player_name;
@@ -101,21 +126,23 @@ public:
                                     sockets_.send_messages_gui(message);
                                 }
                             } else if (type == 3) {
-                                is_game_active_ = false;
-                                player_names_.clear();
+                                std::shared_ptr<GameOver> go = std::dynamic_pointer_cast<GameOver>(event);
+                                if (go) {
+                                    if (go->get_event_no() != next_expected_event_no_) {
+                                        break;
+                                    }
+                                    ++next_expected_event_no_;
+                                    is_game_active_ = false;
+                                    player_names_.clear();
+                                }
                             }
+                        } else {
+                            break; //todo
                         }
                     }
-
                 }
-
             }
-
         }
-        // todo poll sockets
-        // todo send action to server
-        // todo wait for new game
-        // todo initialize players list
     }
 
 #pragma clang diagnostic pop
@@ -184,6 +211,9 @@ private:
 
     uint32_t maxx_;
     uint32_t maxy_;
+    uint32_t next_expected_event_no_;
+
+    int64_t last_send_;
 };
 
 
