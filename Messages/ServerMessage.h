@@ -43,6 +43,10 @@ public:
         return message;
     }
 
+    virtual std::string get_string() {
+        return "";
+    }
+
     std::string get_message() {
         std::string message(serialize());
         uint32_t crc32 = get_control_sum(message);
@@ -147,7 +151,7 @@ public:
 
         uint32_t checksum = (uint32_t) bton(checksum_str);
         if (!check_control_sum(checksum)) {
-            throw std::runtime_error("Wrong control sum.");
+            throw std::invalid_argument("Wrong control sum.");
         }
         assert(check_control_sum(checksum));
     }
@@ -177,6 +181,17 @@ public:
 
         return message;
 
+    }
+
+    std::string get_string() override {
+        std::string res("NEW_GAME ");
+//        res += maxx_ + " " + maxy_;
+
+        for (auto &player : players_) {
+            res += " " + player;
+        }
+
+        return res;
     }
 
     int8_t get_type() override {
@@ -227,7 +242,7 @@ public:
         std::string checksum_str = serialized_message.substr(serialized_message.length() - 4, 4);
         uint32_t checksum = (uint32_t) bton(checksum_str);
         if (!check_control_sum(checksum)) {
-            throw std::runtime_error("Wrong control sum.");
+            throw std::invalid_argument("Wrong control sum.");
         }
         assert(check_control_sum(checksum));
     }
@@ -298,7 +313,7 @@ public:
         uint32_t checksum = (uint32_t) bton(checksum_str);
 
         if (!check_control_sum(checksum)) {
-            throw std::runtime_error("Wrong control sum.");
+            throw std::invalid_argument("Wrong control sum.");
         }
         assert(check_control_sum(checksum));
     }
@@ -346,7 +361,7 @@ public:
         std::string checksum_str = serialized_message.substr(serialized_message.length() - 4, 4);
         uint32_t checksum = (uint32_t) bton(checksum_str);
         if (!check_control_sum(checksum)) {
-            throw std::runtime_error("Wrong control sum.");
+            throw std::invalid_argument("Wrong control sum.");
         }
         assert(check_control_sum(checksum));
     }
@@ -385,25 +400,34 @@ public:
                 throw std::runtime_error("Event is too long to fit into message.");
             }
 
-            std::shared_ptr<Event> event;
-            switch (event_type_) {
-                case 0:
-                    event = std::make_shared<NewGame>(NewGame(events_str.substr(0, event_len + 4)));
-                    break;
-                case 1:
-                    event = std::make_shared<Pixel>(Pixel(events_str.substr(0, event_len + 4)));
-                    break;
-                case 2:
-                    event = std::make_shared<PlayerEliminated>(PlayerEliminated(events_str.substr(0, event_len + 4)));
-                    break;
-                case 3:
-                    event = std::make_shared<GameOver>(GameOver(events_str.substr(0, event_len + 4)));
-                    break;
-                default:
-                    throw std::runtime_error("Wrong event type in message.");
+            std::shared_ptr<Event> event = nullptr;
+            try {
+                switch (event_type_) {
+                    case 0:
+                        event = std::make_shared<NewGame>(NewGame(events_str.substr(0, event_len + 4)));
+                        break;
+                    case 1:
+                        event = std::make_shared<Pixel>(Pixel(events_str.substr(0, event_len + 4)));
+                        break;
+                    case 2:
+                        event = std::make_shared<PlayerEliminated>(PlayerEliminated(events_str.substr(0, event_len + 4)));
+                        break;
+                    case 3:
+                        event = std::make_shared<GameOver>(GameOver(events_str.substr(0, event_len + 4)));
+                        break;
+                    default:
+                        std::cerr << "Wrong event type in message." << std::endl;
+                        break;
+                }
+            } catch (std::invalid_argument e) {
+                std::cerr << std::endl << e.what() << std::endl;
+                break;
             }
+
             events_str = events_str.substr(event_len + 4);
-            events_.push_back(event);
+            if (event) {
+                events_.push_back(event);
+            }
         }
     }
 

@@ -24,10 +24,10 @@ public:
         uint16_t sockets = 2;
         sockets_fds_ = (pollfd *) calloc(sockets, sizeof(struct pollfd));
 
-        sockets_fds_[0].events = POLLIN | POLLOUT; // todo leave pollout or not?
+        sockets_fds_[0].events = POLLIN; // todo leave pollout or not?
         sockets_fds_[0].revents = 0;
 
-        sockets_fds_[1].events = POLLIN | POLLOUT; // todo leave pollout or not?
+        sockets_fds_[1].events = POLLIN; // todo leave pollout or not?
         sockets_fds_[1].revents = 0;
 
         server_socket_.open();
@@ -52,7 +52,22 @@ public:
     }
 
     std::pair<bool, bool> poll_sockets(ServerDatagram &datagram, std::string &message_gui) {
-        int32_t ret = poll(sockets_fds_, 1, TIMEOUT_LIMIT);
+        if (!messages_server_.empty()) {
+            sockets_fds_[0].events = POLLIN | POLLOUT;
+        } else {
+            sockets_fds_[0].events = POLLIN;
+        }
+        sockets_fds_[0].revents = 0;
+
+        if (!messages_gui_.empty()) {
+            sockets_fds_[1].events = POLLIN | POLLOUT;
+        } else {
+            sockets_fds_[1].events = POLLIN;
+        }
+        sockets_fds_[1].revents = 0;
+
+
+        int32_t ret = poll(sockets_fds_, 2, TIMEOUT_LIMIT);
         std::pair<bool, bool> res(false, false);
         if (ret < 0) {
             throw std::runtime_error("Error while polling");
@@ -74,12 +89,8 @@ public:
 
                     NetworkAddress sender(received.second);
                     res.first = true;
-                    try {
-                        datagram = ServerDatagram(message);
-                    } catch (std::runtime_error e) {
-                        std::cerr << e.what() << std::endl;
-                        res.first = false;
-                    }
+
+                    datagram = ServerDatagram(message); // todo check if throws bad data
                 }
             }
 

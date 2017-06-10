@@ -290,14 +290,14 @@ private:
             if (!player_name.empty()) {
                 Player new_player(player_name, (int64_t) session_id, player_address, timestamp);
                 new_player.set_last_direction(direction);
-                new_player.set_expected_event_no(expected_event_no); //todo or 0?
+                new_player.set_expected_event_no(0); //todo or 0?
                 std::shared_ptr<Player> player_ptr = std::make_shared<Player>(new_player);
                 players_.insert({player_address, player_ptr});
 
                 send_message({player_address, player_ptr});
             } else if (observers_.find(player_address) == observers_.end()) {
                 Observer new_obs((int64_t) session_id, player_address, timestamp);
-                new_obs.set_expected_event_no(expected_event_no); //todo or 0?
+                new_obs.set_expected_event_no(0); //todo or 0?
                 observers_.insert({player_address, new_obs});
             }
         } else {

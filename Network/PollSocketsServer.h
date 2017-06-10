@@ -44,9 +44,9 @@ public:
     std::pair<bool, ClientMessage> poll_sockets() {
         for (uint16_t i = 0; i < 1; ++i) {
             if (!messages_to_send.empty()) {
-                sockets_fds_[i].events = POLLIN | POLLOUT; // todo leave pollout or not?
+                sockets_fds_[i].events = POLLIN | POLLOUT;
             } else {
-                sockets_fds_[i].events = POLLIN; // todo leave pollout or not?
+                sockets_fds_[i].events = POLLIN;
             }
             sockets_fds_[i].revents = 0;
         }
