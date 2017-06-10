@@ -178,6 +178,14 @@ public:
         return is_alive_;
     }
 
+    void set_pressed_key(bool val) {
+        pressed_key_ = val;
+    }
+
+    bool has_pressed_key() {
+        return pressed_key_;
+    }
+
 private:
     std::shared_ptr<Head> head_;
     std::string player_name_;
@@ -185,6 +193,7 @@ private:
     bool is_alive_;
     char direction_;
     char player_number_;
+    bool pressed_key_;
 };
 
 class GameBoard {
@@ -328,6 +337,14 @@ private:
             } else {
                 return;
             }
+
+        }
+
+        if (!player_name.empty()) {
+            auto player = players_.find(player_address);
+            if (direction != 0) {
+                player->second->set_pressed_key(true);
+            }
         }
 
         if (!is_game_active_) {
@@ -353,6 +370,7 @@ private:
             events_.push_back(go_ptr);
 
             for (auto &el : players_) {
+                el.second->set_pressed_key(false);
                 el.second->set_playing_status(false);
                 el.second->kill();
                 el.second->set_last_direction(0);
@@ -412,7 +430,7 @@ private:
             if (timestamp - player->get_last_active() > TIMEOUT_LIMIT) {
                 player->set_connected_status(false);
                 to_remove.push_back(el.first);
-            } else if (player->is_connected() && player->get_last_direction() != 0) {
+            } else if (player->is_connected() && player->has_pressed_key()) {
 
                 ++players_ready;
                 ready_players.push_back(player->get_player_name());
@@ -435,6 +453,9 @@ private:
     void send_message(std::pair<NetworkAddress, std::shared_ptr<Player>> player) {
         uint32_t expected_event_no = player.second->get_expected_event_no();
 
+        if (expected_event_no > events_.size()) {
+            return;
+        }
         std::vector<std::shared_ptr<Event>> events_to_send(events_.begin() + expected_event_no,
                                                            events_.end());
 
@@ -450,6 +471,7 @@ private:
 
         std::cout << "Zaczynamy!" << std::endl; //todo to remove
 
+        events_.clear();
         std::vector<std::pair<std::string, std::pair<std::shared_ptr<Player>, NetworkAddress>>> players_to_sort;
         for (auto &el : players_) {
             players_to_sort.push_back({el.second->get_player_name(), {el.second, el.first}});

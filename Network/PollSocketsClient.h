@@ -13,7 +13,7 @@
 #include "../Messages/ServerMessage.h"
 
 const uint16_t MAX_UDP_PACKET_SIZE = 512;
-const uint16_t TIMEOUT_LIMIT = 100;
+const uint16_t TIMEOUT_LIMIT = 20;
 
 class PollSocketsClient {
 public:
@@ -140,6 +140,13 @@ public:
 
     void send_messages_gui(std::string message) {
         messages_gui_.push(message);
+    }
+
+    void drop_messages() {
+        std::queue<std::string> empty;
+        std::queue<std::string> empty2;
+        std::swap(messages_gui_, empty);
+        std::swap(messages_server_, empty2);
     }
 
 

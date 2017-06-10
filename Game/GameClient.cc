@@ -19,7 +19,7 @@ GameClient::GameClient(std::string &player_name,
                                                   last_send_(0),
                                                   left_arrow_down_(0),
                                                   right_arrow_down_(0),
-                                                  last_dir_(1) {
+                                                  last_dir_(0) {
     get_new_session_id();
 }
 
