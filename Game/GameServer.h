@@ -448,9 +448,9 @@ private:
 
         std::cout << "Zaczynamy!" << std::endl; //todo to remove
 
-        std::vector<std::pair<std::shared_ptr<Player>, NetworkAddress>> players_to_sort;
+        std::vector<std::pair<std::string, std::pair<std::shared_ptr<Player>, NetworkAddress>>> players_to_sort;
         for (auto &el : players_) {
-            players_to_sort.push_back({el.second, el.first});
+            players_to_sort.push_back({el.second->get_player_name(), {el.second, el.first}});
         }
         std::sort(players_to_sort.begin(), players_to_sort.end()); // todo validate
 
@@ -458,11 +458,11 @@ private:
         players_sorted_.clear();
         uint8_t player_number = 0;
         for (auto &el : players_to_sort) {
-            el.first->set_player_number(player_number);
-            el.first->set_playing_status(true);
-            el.first->set_alive();
-            players_sorted_.push_back({el.second, el.first});
-            player_names_sorted.push_back({el.first->get_player_name()});
+            el.second.first->set_player_number(player_number);
+            el.second.first->set_playing_status(true);
+            el.second.first->set_alive();
+            players_sorted_.push_back({el.second.second, el.second.first});
+            player_names_sorted.push_back({el.second.first->get_player_name()});
             ++player_number;
         }
 

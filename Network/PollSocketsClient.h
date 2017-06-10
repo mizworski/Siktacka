@@ -84,12 +84,10 @@ public:
                     res.first = false;
                 }
 
-                if (res.first) {
+                NetworkAddress sender(received.second);
+                if (res.first && sender == server_address_) {
                     auto message = received.first;
-
-                    NetworkAddress sender(received.second);
                     res.first = true;
-
                     datagram = ServerDatagram(message); // todo check if throws bad data
                 }
             }

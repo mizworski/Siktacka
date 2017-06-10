@@ -184,12 +184,13 @@ public:
     }
 
     std::string get_string() override {
-        std::string res("NEW_GAME ");
-//        res += maxx_ + " " + maxy_;
+        std::string res("NEW_GAME " + std::to_string(maxx_) + " " + std::to_string(maxy_));
 
         for (auto &player : players_) {
             res += " " + player;
         }
+
+        res += 10;
 
         return res;
     }
@@ -284,6 +285,12 @@ public:
         return y_;
     }
 
+    std::string get_string() override {
+        std::string res("PIXEL " + std::to_string(x_) + " " + std::to_string(y_) + " ");
+
+        return res;
+    }
+
 private:
     char player_number_;
     uint32_t x_;
@@ -327,6 +334,12 @@ public:
         message += os.str();
 
         return message;
+    }
+
+    std::string get_string() override {
+        std::string res("PLAYER_ELIMINATED ");
+
+        return res;
     }
 
     int8_t get_type() override {
@@ -382,7 +395,6 @@ public:
         if (serialized_message.length() < 4) {
             throw std::runtime_error("Message too short. Should be at least 4 bytes long.");
         }
-        std::cout << "message_size=" << serialized_message.length() << std::endl;
         assert(serialized_message.length() >= 4);
 
         game_id_ = (uint32_t) bton(serialized_message.substr(0, 4));
